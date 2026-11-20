@@ -145,7 +145,7 @@ End-to-end scenarios (TODO(Hadi)) are listed in [e2e/README.md](e2e/README.md).
 | Demo video | _TODO: add URL_ |
 
 ## Known limitations
-_To be filled in honestly as we build._ Currently: backend routers return fixtures; AI runs in `stub` mode; no real database persistence yet; demo users are in memory.
+_To be filled in honestly as we build._ Currently: auth, cases, consent, audit, rules and API keys use the database; `/claims`, `/messages/check`, `/documents` and `/eval` still return fixtures; AI runs in `stub` mode.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)

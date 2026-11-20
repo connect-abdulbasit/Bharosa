@@ -20,16 +20,23 @@ Routers currently return fixtures (marked TODO(Basit)) but already enforce RBAC 
 - Rate limiting and clean error handling (no stack traces to clients).
 - No real personal data. Demo users/passwords are fake (`.env.example`).
 
+## Status (database step done)
+Real, DB-backed (SQLAlchemy 2.0 + Alembic `0001_initial_schema`): users, auth (bcrypt + JWT), `/me`, cases (create/list/get/assign/escalate/decide/close), consent (list/grant/withdraw/correct + `services/consent.require`), audit (`audit.log(db, actor_type, actor_id, action, entity, entity_id, before, after)`, request-id middleware, append-only), rules (list/versions/new version), queue, helper families, API keys (hashed).
+Still fixtures (TODO): `/claims` pipeline result, `/messages/check`, `/documents`, `/eval`. `/claims` already enforces consent before returning.
+
+Conventions added in this step:
+- Pass the request's `db` session to `audit.log(...)`; it only `add()`s, so the entry commits atomically with the change. When the request will fail afterwards (login failure, blocked consent) commit first, then raise.
+- Auditors are read-only: enforced centrally in `require_role` (any non-GET method is 403).
+- Row-level access lives in `services/access.py`; objects a user may not see answer 404.
+- Status changes go through `services/cases.change_status` (validates transitions, always audits).
+- Extra columns beyond the original spec: `users.username` (login id), `users.cnic` (fake), `api_keys.prefix`.
+
 ## Tasks
-- [ ] TODO(Basit): SQLAlchemy models (list in `app/models/__init__.py`) + Alembic migrations + seed (demo users per role).
-- [ ] TODO(Basit): replace fixture returns with DB-backed logic, router by router; keep response models unchanged.
-- [ ] TODO(Basit): case lifecycle: create/assign/escalate/decide/close with status transitions validated.
-- [ ] TODO(Basit): claim pipeline (`services/pipeline.py`) with `bharosa_ai` + mocks, resumable steps.
-- [ ] TODO(Basit): consent service (see/share/withdraw/correct) enforced before mock calls.
-- [ ] TODO(Basit): rules versioning + `/rules` editor endpoints, active rule lookup.
-- [ ] TODO(Basit): audit log table + `/audit` filters.
-- [ ] TODO(Basit): API keys (hashed, scoped), rate limiting, Swagger polish.
-- [ ] TODO(Basit): `/queue` sorted by risk desc then confidence asc; `/eval` serves `ai/eval_results.json`.
+- [x] Models + Alembic migration, seed (`make seed`), auth + RBAC, audit, cases, consent.
+- [ ] TODO(Basit): claim pipeline (`services/pipeline.py`) with `bharosa_ai` + mocks client, resumable steps; use `consent.require` before each mock call; mock failure -> `with_officer` with notes.
+- [ ] TODO(Basit): documents (OCR, blur -> retake), messages/check via `bharosa_ai`, `/eval` from `ai/eval_results.json`.
+- [ ] TODO(Basit): API-key authentication (`X-API-Key` + scopes) and per-key rate limiting; general rate limiting.
+- [ ] TODO(Basit): Postgres-level append-only guard for `audit_log` (trigger or revoke UPDATE/DELETE).
 - [ ] TODO(Basit): logs, deploy (Render/Railway + Supabase Postgres), deployed URL in README.
 
 ## Run / test
@@ -37,6 +44,7 @@ Routers currently return fixtures (marked TODO(Basit)) but already enforce RBAC 
 make test                                    # all folders
 cd backend && ../.venv/bin/python -m pytest -q
 cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000   # PYTHONPATH must include repo root and ai/ (make dev sets it)
-cd backend && alembic revision --autogenerate -m "msg" && alembic upgrade head   # needs DATABASE_URL
+make db migrate seed        # postgres in docker (POSTGRES_PORT=5544 make db if 5432 is taken), then migrate + seed
+cd backend && alembic revision --autogenerate -m "msg"   # then review the file; needs DATABASE_URL
 ```
 Swagger: http://localhost:8000/docs. Demo logins: username = role name; passwords in `.env.example`.

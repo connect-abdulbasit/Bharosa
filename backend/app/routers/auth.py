@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import ANY_ROLE
 from app.auth.jwt import create_token
 from app.auth.passwords import verify_password
-from app.auth.users import get_user_by_username
 from app.config import settings
+from app.db import get_db
+from app.models import User
 from app.services import audit
 from contracts.schemas import LoginRequest, Me, TokenResponse
 
@@ -12,16 +15,18 @@ router = APIRouter(tags=["auth"])
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(body: LoginRequest):
-    user = get_user_by_username(body.username)
-    if user is None or not verify_password(body.password, user["password_hash"]):
-        audit.log(body.username, "auth.login_failed", None, None, target=body.username)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = db.execute(select(User).where(or_(User.username == body.username, User.phone == body.username))).scalars().first()
+    if user is None or not verify_password(body.password, user.password_hash):
+        audit.log(db, "system", None, "auth.login_failed", "user", user.id if user else None,
+                  after={"username": body.username[:50]})
+        db.commit()
         raise HTTPException(status_code=401, detail="Wrong username or password")
-    audit.log(user["user_id"], "auth.login", None, {"role": user["role"]}, target=user["user_id"])
-    return TokenResponse(access_token=create_token(user["user_id"], user["role"]), role=user["role"],
-                         expires_in=settings.JWT_EXPIRES_SECONDS)
+    audit.log(db, "user", user.id, "auth.login", "user", user.id, after={"role": user.role})
+    db.commit()
+    return TokenResponse(access_token=create_token(user.id, user.role), role=user.role, expires_in=settings.JWT_EXPIRES_SECONDS)
 
 
 @router.get("/me", response_model=Me)
-def me(user=Depends(get_current_user)):
-    return Me(**{k: user[k] for k in ("user_id", "username", "display_name", "role", "language")})
+def me(user: User = Depends(ANY_ROLE)):
+    return Me(user_id=user.id, username=user.username, display_name=user.name, role=user.role, language="ur")

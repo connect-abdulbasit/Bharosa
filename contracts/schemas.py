@@ -137,7 +137,8 @@ class CaseListResponse(BaseModel):
 
 
 class CaseCreate(BaseModel):
-    citizen_name: str
+    citizen_name: Optional[str] = None  # ignored by the server (name comes from the user record)
+    citizen_id: Optional[str] = None  # helpers: the linked citizen the case is for
     cnic: Optional[str] = None
     claim_type: str = "missing"
     amount_claimed_pkr: int = 0
@@ -252,6 +253,7 @@ class RuleVersionCreate(BaseModel):
 # --------------------------------------------------------------------------- platform: consent
 class ConsentRecord(BaseModel):
     id: str
+    citizen_id: Optional[str] = None
     scope: ConsentScope
     granted: bool
     granted_at: Optional[str] = None
@@ -267,6 +269,11 @@ class ConsentListResponse(BaseModel):
 class ConsentGrant(BaseModel):
     scope: ConsentScope
     shared_with: List[str] = Field(default_factory=list)
+    citizen_id: Optional[str] = None  # helpers: the linked citizen granting
+
+
+class ConsentWithdraw(BaseModel):
+    reason: Optional[str] = None
 
 
 class ConsentCorrection(BaseModel):
@@ -282,6 +289,9 @@ class AuditEntry(BaseModel):
     actor_type: str = Field(..., description="user | ai | agent | system")
     action: str
     target: str
+    entity: Optional[str] = None
+    entity_id: Optional[str] = None
+    request_id: Optional[str] = None
     before: Optional[Dict[str, Any]] = None
     after: Optional[Dict[str, Any]] = None
 

@@ -210,6 +210,18 @@ paths:
             application/json:
               schema:
                 $ref: 'schemas.py#/ConsentRecord'
+  /consent/{id}/correct:
+    post:
+      summary: POST /consent/{id}/correct
+      x-roles: [citizen,helper]
+      x-request-schema: ConsentCorrection
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ConsentRecord'
   /audit:
     get:
       summary: GET /audit

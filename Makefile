@@ -2,7 +2,7 @@
 PY := .venv/bin/python
 export PYTHONPATH := $(CURDIR)
 
-.PHONY: install dev test lint seed up down
+.PHONY: install dev test lint seed migrate db up down
 
 install:
 	python3 -m venv .venv
@@ -22,8 +22,14 @@ test:
 lint:
 	$(PY) -m ruff check ai backend mocks contracts
 
-seed:  ## TODO(Basit): seed demo users/cases into Postgres once models exist
-	@echo "Demo users are currently seeded in memory (backend/app/auth/users.py). TODO(Basit): DB seed."
+db:  ## start only postgres (host port from POSTGRES_PORT, default 5432)
+	docker compose up -d postgres
+
+migrate:  ## apply Alembic migrations (needs DATABASE_URL, see .env.example)
+	cd backend && ../$(PY) -m alembic upgrade head
+
+seed:  ## create demo users, helper + 10 citizens, 5 cases, rule v1, consents (idempotent; --reset to wipe)
+	cd backend && PYTHONPATH=..:../ai ../$(PY) -m app.seed $(ARGS)
 
 up:
 	docker compose up --build

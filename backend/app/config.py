@@ -13,6 +13,7 @@ class Settings:
     DATABASE_URL = _env("DATABASE_URL", "postgresql+psycopg2://bharosa:bharosa@localhost:5432/bharosa")
     JWT_SECRET = _env("JWT_SECRET", "dev-only-change-me-not-for-production-0000")
     JWT_ALGORITHM = "HS256"
+    BCRYPT_ROUNDS = int(_env("BCRYPT_ROUNDS", "12"))
     JWT_EXPIRES_SECONDS = int(_env("JWT_EXPIRES_SECONDS", "3600"))
     CORS_ORIGINS = [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
     FIXTURES_DIR = Path(_env("FIXTURES_DIR", str(Path(__file__).resolve().parents[2] / "contracts" / "fixtures")))
