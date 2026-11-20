@@ -17,8 +17,8 @@ def test_every_status_change_creates_an_audit_row(client, db):
 
     steps = [
         ("helper", "/cases/%s/escalate" % cid, {"reason": "middleman asked for a fee"}, "submitted", "with_officer", "case.escalate"),
-        ("officer", "/cases/%s/decide" % cid, {"action": "request_more", "note": "need clearer ID"}, "with_officer", "needs_more_proof", "case.decide"),
-        ("officer", "/cases/%s/decide" % cid, {"action": "approve"}, "needs_more_proof", "approved", "case.decide"),
+        ("officer", "/cases/%s/decide" % cid, {"action": "ask_more", "reason": "need clearer ID"}, "with_officer", "needs_more_proof", "case.decide"),
+        ("officer", "/cases/%s/decide" % cid, {"action": "approve", "reason": "ID is fine now"}, "needs_more_proof", "approved", "case.decide"),
         ("officer", "/cases/%s/close" % cid, {"resolution": "paid"}, "approved", "closed", "case.close"),
     ]
     # helper is linked to citizen-1 who owns this case
@@ -26,12 +26,12 @@ def test_every_status_change_creates_an_audit_row(client, db):
         r = client.post(path, json=body, headers=auth(client, role))
         assert r.status_code == 200, (path, r.text)
         assert r.json()["status"] == new
-        row = rows_for(db, cid)[-1]
+        row = [x for x in rows_for(db, cid) if x.action == action][-1]  # approve also logs payment.release
         assert row.action == action and row.before["status"] == old and row.after["status"] == new
         assert row.actor_type == "user"
 
     rows = rows_for(db, cid)
-    assert [r.action for r in rows] == ["case.create", "case.escalate", "case.decide", "case.decide", "case.close"]
+    assert [r.action for r in rows if r.action != "payment.release"] == ["case.create", "case.escalate", "case.decide", "case.decide", "case.close"]
     assert rows[0].before is None and rows[0].after["status"] == "submitted"
 
 
@@ -39,7 +39,7 @@ def test_invalid_transition_is_409_and_not_audited(client, db):
     h = auth(client, "officer")
     n = len(rows_for(db, "case-0005"))
     assert client.post("/cases/case-0005/close", json={"resolution": "again"}, headers=h).status_code == 409  # already closed
-    assert client.post("/cases/case-0005/decide", json={"action": "approve"}, headers=h).status_code == 409
+    assert client.post("/cases/case-0005/decide", json={"action": "approve", "reason": "again"}, headers=h).status_code == 409
     assert len(rows_for(db, "case-0005")) == n
 
 
@@ -75,10 +75,11 @@ def test_login_and_failed_login_are_audited(client, db):
 
 def test_request_id_groups_entries_and_is_returned(client, db):
     h = dict(auth(client, "citizen"), **{"X-Request-ID": "req-abc-123"})
-    r = client.post("/claims", json={}, headers=h)
+    r = client.post("/claims", json={"transcript": "mujhe paisay kam mile hain"}, headers=h)
     assert r.headers["X-Request-ID"] == "req-abc-123"
     rows = db.execute(select(AuditLog).where(AuditLog.request_id == "req-abc-123")).scalars().all()
-    assert [x.action for x in rows] == ["claim.create"]
+    assert "claim.create" in [x.action for x in rows] and len(rows) > 3  # every pipeline step shares the request id
+    assert {x.actor_type for x in rows} >= {"user", "agent", "ai"}
     assert client.get("/me", headers=h).headers["X-Request-ID"] == "req-abc-123"
     assert len(client.get("/health").headers["X-Request-ID"]) >= 16  # generated
 
@@ -119,7 +120,7 @@ def test_rule_new_version_is_immutable_history(client, db):
     assert client.get("/rules", headers=admin).json()["items"][0]["current_version"] == 2
     bad = client.post("/rules/rule-stipend-short-payment/versions", json={"auto_handle_min": 0.5, "ask_more_min": 0.9}, headers=admin)
     assert bad.status_code == 422
-    d = client.post("/cases/case-0001/decide", json={"action": "approve"}, headers=auth(client, "officer")).json()["decision"]
+    d = client.post("/cases/case-0001/decide", json={"action": "approve", "reason": "checked"}, headers=auth(client, "officer")).json()["decision"]
     assert d["rule_version"] == 2
 
 

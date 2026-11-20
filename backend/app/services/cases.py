@@ -12,12 +12,16 @@ from app.models.base import utcnow
 ALLOWED = {
     "draft": {"submitted", "closed"},
     "submitted": {"with_officer", "needs_more_proof", "approved", "rejected", "closed"},
-    "needs_more_proof": {"submitted", "with_officer", "approved", "rejected", "closed"},
+    "needs_more_proof": {"needs_more_proof", "submitted", "with_officer", "approved", "rejected", "closed"},
     "with_officer": {"approved", "rejected", "needs_more_proof", "closed"},
     "approved": {"closed"},
     "rejected": {"closed"},
     "closed": set(),
 }
+
+
+def can_move(case: Case, new_status: str) -> bool:
+    return new_status in ALLOWED.get(case.status, set())
 
 
 def add_note(case: Case, author: str, text: str) -> None:
@@ -26,7 +30,7 @@ def add_note(case: Case, author: str, text: str) -> None:
 
 def change_status(db: Session, case: Case, new_status: str, actor: User, action: str, note: Optional[str] = None,
                   step: Optional[str] = None) -> None:
-    if new_status not in ALLOWED.get(case.status, set()):
+    if not can_move(case, new_status):
         raise HTTPException(status_code=409, detail="Cannot move a case from '%s' to '%s'" % (case.status, new_status))
     before = case_snapshot(case)
     case.status = new_status

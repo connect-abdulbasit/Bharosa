@@ -19,16 +19,16 @@ ENDPOINTS = [
     ("GET", "/cases/" + C1_CASE, None, set(ROLES)),
     ("POST", "/cases/%s/assign" % C1_CASE, lambda r: {"officer_id": "u-officer-1"}, {"officer", "admin"}),
     ("POST", "/cases/%s/escalate" % C1_CASE, lambda r: {"reason": "family reports a middleman"}, {"helper", "officer"}),
-    ("POST", "/cases/%s/decide" % C1_CASE, lambda r: {"action": "approve"}, {"officer"}),
+    ("POST", "/cases/%s/decide" % C1_CASE, lambda r: {"action": "approve", "reason": "ledger checked"}, {"officer"}),
     ("POST", "/cases/%s/close" % C1_CASE, lambda r: {"resolution": "resolved"}, {"officer", "admin"}),
     ("POST", "/claims", lambda r: dict(helper_or_none(r, "on_behalf_of"), transcript="kam paise mile"), {"citizen", "helper"}),
-    ("POST", "/messages/check", lambda r: {"text": "pay fee", "sender": "1234"}, {"citizen", "helper", "officer", "admin"}),
-    ("POST", "/documents", None, {"citizen", "helper"}),
+    ("POST", "/messages/check", lambda r: {"text": "pay fee", "sender": "1234"}, {"citizen", "helper"}),
+    ("POST", "/documents", lambda r: helper_or_none(r), {"citizen", "helper"}),
     ("GET", "/rules", None, {"officer", "admin", "auditor"}),
     ("GET", "/rules/rule-stipend-short-payment/versions", None, {"officer", "admin", "auditor"}),
     ("POST", "/rules/rule-stipend-short-payment/versions", lambda r: {"auto_handle_min": 0.95, "ask_more_min": 0.6}, {"admin"}),
     ("GET", "/consent", None, {"citizen", "helper"}),
-    ("POST", "/consent", lambda r: dict(helper_or_none(r), scope="identity"), {"citizen", "helper"}),
+    ("POST", "/consent", lambda r: dict(helper_or_none(r), scope="identity", **({"pin": "1234"} if r == "helper" else {})), {"citizen", "helper"}),
     ("POST", "/consent/%s/withdraw" % C1_IDENTITY_CONSENT, lambda r: {"reason": "changed my mind"}, {"citizen", "helper"}),
     ("POST", "/consent/%s/correct" % C1_IDENTITY_CONSENT, lambda r: {"field": "phone", "new_value": "03001234567"}, {"citizen", "helper"}),
     ("GET", "/audit", None, {"auditor", "admin"}),
@@ -41,7 +41,12 @@ ENDPOINTS = [
 IDS = ["%s %s" % (m, p) for m, p, *_ in ENDPOINTS]
 
 
+PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 300
+
+
 def call(client, method, path, body, headers):
+    if path == "/documents":  # multipart upload
+        return client.post(path, data=body or {}, files={"file": ("id.png", PNG, "image/png")}, headers=headers)
     return client.request(method, path, json=body, headers=headers)
 
 

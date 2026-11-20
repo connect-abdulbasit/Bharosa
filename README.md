@@ -145,7 +145,7 @@ End-to-end scenarios (TODO(Hadi)) are listed in [e2e/README.md](e2e/README.md).
 | Demo video | _TODO: add URL_ |
 
 ## Known limitations
-_To be filled in honestly as we build._ Currently: auth, cases, consent, audit, rules and API keys use the database; `/claims`, `/messages/check`, `/documents` and `/eval` still return fixtures; AI runs in `stub` mode.
+_To be filled in honestly as we build._ Currently: everything except `/eval` is database-backed and the claim pipeline runs end to end, but AI runs in `stub` mode (the stub claim extractor always hears the name "Mohammad Aslam" with confidence 0.81, so most demo claims end in `needs_more_proof` or an officer queue); `/eval` still returns a fixture; no API-key authentication or rate limiting yet.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)

@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models import Rule, RuleVersion, User
 from app.services import audit
 from app.services import rules as rule_service
+from app.services.jsonlogic import RuleError
 from app.services.serialize import iso
 from contracts.enums import Role
 from contracts.schemas import RuleListResponse, RuleVersionCreate, RuleVersionsResponse
@@ -43,8 +44,12 @@ def list_versions(rule_id: str, user=Depends(require_role(*READERS)), db: Sessio
 def create_version(rule_id: str, body: RuleVersionCreate, user: User = Depends(require_role(Role.admin)), db: Session = Depends(get_db)):
     """Insert a NEW immutable version and make it active. No redeploy, old versions untouched."""
     rule = _rule(db, rule_id)
-    if not (0.0 <= body.ask_more_min <= body.auto_handle_min <= 1.0):
-        raise HTTPException(status_code=422, detail="Need 0 <= ask_more_min <= auto_handle_min <= 1")
+    try:
+        rule_service.validate_rule(body.logic, body.auto_handle_min, body.ask_more_min, body.red_flags)
+    except RuleError as exc:
+        audit.log(db, "user", user.id, "rule.rejected", "rule", rule.id, after={"error": str(exc)[:300]})
+        db.commit()
+        raise HTTPException(status_code=422, detail="Invalid rule: %s" % exc)
     prev = rule_service.get_version(db, rule.id, rule.active_version)
     new_version = (db.execute(select(RuleVersion.version).where(RuleVersion.rule_id == rule.id).order_by(RuleVersion.version.desc())).scalars().first() or 0) + 1
     rv = RuleVersion(rule_id=rule.id, version=new_version, logic=body.logic or (prev.logic if prev else {}),

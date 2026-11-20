@@ -17,6 +17,7 @@ class User(Base):
     cnic: Mapped[Optional[str]] = mapped_column(String(13), unique=True, nullable=True)  # FAKE, starts 00000
     role: Mapped[str] = mapped_column(String(20), index=True)
     password_hash: Mapped[str] = mapped_column(String(100))
+    pin_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # 4-digit PIN (citizens), bcrypt
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

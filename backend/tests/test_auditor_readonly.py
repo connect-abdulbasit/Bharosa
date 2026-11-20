@@ -7,7 +7,7 @@ WRITES = [
     ("POST", "/cases", {"claim_type": "missing", "amount_claimed_pkr": 1}),
     ("POST", "/cases/case-0001/assign", {"officer_id": "u-officer-1"}),
     ("POST", "/cases/case-0001/escalate", {"reason": "x"}),
-    ("POST", "/cases/case-0001/decide", {"action": "approve"}),
+    ("POST", "/cases/case-0001/decide", {"action": "approve", "reason": "x"}),
     ("POST", "/cases/case-0001/close", {"resolution": "x"}),
     ("POST", "/claims", {}),
     ("POST", "/messages/check", {"text": "x", "sender": "y"}),

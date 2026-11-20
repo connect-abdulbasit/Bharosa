@@ -26,5 +26,6 @@ class ConsentEvent(Base):
     consent_id: Mapped[str] = mapped_column(ForeignKey("consents.id"), index=True)
     action: Mapped[str] = mapped_column(String(15))  # grant | withdraw | correct | blocked
     actor_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    confirmed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # citizen who confirmed (PIN) a helper action
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

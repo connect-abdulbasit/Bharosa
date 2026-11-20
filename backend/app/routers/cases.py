@@ -14,16 +14,19 @@ from app.db import get_db
 from app.models import Case, Claim, Decision, User
 from app.services import audit
 from app.services import cases as case_service
+from app.services import consent as consent_service
 from app.services import rules as rule_service
 from app.services.access import resolve_citizen, visible_citizen_ids
-from app.services.serialize import case_detail, case_snapshot, case_summary
-from contracts.enums import Role
+from app.services.mock_errors import MockUnavailable
+from app.services.mocks_client import get_mocks_client
+from app.services.serialize import case_detail, case_snapshot, case_summary, latest_claim
+from contracts.enums import ConsentScope, Role
 from contracts.schemas import (AssignRequest, CaseCreate, CaseDetail, CaseListResponse, CloseRequest, EscalateRequest,
                                OfficerDecision)
 
 router = APIRouter(tags=["cases"])
 
-OFFICER_ACTIONS = {"approve": "approved", "reject": "rejected", "request_more": "needs_more_proof"}
+OFFICER_ACTIONS = {"approve": "approved", "reject": "rejected", "ask_more": "needs_more_proof", "request_more": "needs_more_proof"}
 
 
 def get_visible_case(db: Session, user: User, case_id: str) -> Case:
@@ -95,20 +98,45 @@ def escalate(case_id: str, body: EscalateRequest, user: User = Depends(require_r
 
 @router.post("/cases/{case_id}/decide", response_model=CaseDetail)
 def decide(case_id: str, body: OfficerDecision, user: User = Depends(require_role(Role.officer)), db: Session = Depends(get_db)):
-    # Payment steps always need an officer: only Role.officer may decide.
+    """Officer decision (approve / reject / ask_more) with a REQUIRED reason, stored with decided_by = officer id.
+    Approving a case that needs a payment releases it through the (mock) payments channel and records it."""
     if body.action not in OFFICER_ACTIONS:
-        raise HTTPException(status_code=422, detail="action must be one of %s" % sorted(OFFICER_ACTIONS))
+        raise HTTPException(status_code=422, detail="action must be one of approve, reject, ask_more")
+    reason = (body.reason or body.note or "").strip()
+    if len(reason) < 3:
+        raise HTTPException(status_code=422, detail="A reason is required for every officer decision")
+    action = "ask_more" if body.action == "request_more" else body.action
+    new_status = OFFICER_ACTIONS[action]
     case = get_visible_case(db, user, case_id)
+    if not case_service.can_move(case, new_status):
+        raise HTTPException(status_code=409, detail="Cannot move a case from '%s' to '%s'" % (case.status, new_status))
     rule = rule_service.get_active_rule(db)
-    case_service.change_status(db, case, OFFICER_ACTIONS[body.action], user, "case.decide",
-                               note=body.note or "Officer decision: %s" % body.action)
-    dec = Decision(case_id=case.id, action=body.action, confidence=1.0, reasons=[body.note] if body.note else [],
-                   trace={"officer_decision": True}, rule_id=rule.rule_id, rule_version=rule.version,
-                   model_version=None, decided_by=user.id)
+
+    payment = None
+    claim = latest_claim(db, case.id)
+    shortfall = (claim.expected_amount - claim.received_amount) if claim else 0
+    if action == "approve" and shortfall > 0:
+        citizen = db.get(User, case.citizen_id)
+        consent_service.require(db, citizen.id, ConsentScope.complaints, user, "release approved payment")  # 403 if withdrawn
+        try:
+            res = get_mocks_client().complaint(citizen.cnic or "", "payment_topup",
+                                               "Approved top-up of PKR %d for case %s by %s" % (shortfall, case.id, user.id))
+        except MockUnavailable as exc:
+            audit.log(db, "agent", "agent:payments", "payment.failed", "case", case.id, after={"amount_pkr": shortfall, "error": str(exc)[:200]})
+            db.commit()
+            raise HTTPException(status_code=503, detail="The payment could not be released (%s). Nothing was changed; please try again." % exc)
+        payment = {"ticket_id": res.get("ticket_id"), "amount_pkr": shortfall, "channel": "mocks /complaints", "simulated": True}
+
+    case_service.change_status(db, case, new_status, user, "case.decide", note="Officer decision %s: %s" % (action, reason))
+    dec = Decision(case_id=case.id, action=action, confidence=1.0, reasons=[reason], trace={"officer_decision": True, "payment": payment},
+                   rule_id=rule.rule_id, rule_version=rule.version, model_version=None, decided_by=user.id)
     db.add(dec)
     db.flush()
-    audit.log(db, "user", user.id, "decision.create", "decision", dec.id, after={"case_id": case.id, "action": body.action,
-              "rule_version": rule.version})
+    audit.log(db, "user", user.id, "decision.create", "decision", dec.id,
+              after={"case_id": case.id, "action": action, "reason": reason, "rule_id": rule.rule_id, "rule_version": rule.version})
+    if payment:
+        case_service.add_note(case, user.id, "Payment released: PKR %d (ticket %s)" % (shortfall, payment["ticket_id"]))
+        audit.log(db, "user", user.id, "payment.release", "case", case.id, after=payment)
     db.commit()
     return case_detail(db, case)
 

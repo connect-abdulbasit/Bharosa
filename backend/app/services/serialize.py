@@ -69,7 +69,13 @@ def case_detail(db: Session, case: Case) -> Dict[str, Any]:
         out["rule_version"] = dec.rule_version
         out["explanation_ur"] = (dec.trace or {}).get("explanation_ur")
         out["explanation_en"] = (dec.trace or {}).get("explanation_en")
-    if case.current_step:
+    claim = latest_claim(db, case.id)
+    state = (claim.data or {}).get("pipeline") if claim else None
+    if state:
+        from app.services.pipeline import steps_view  # lazy: pipeline imports this module
+
+        out["pipeline_steps"] = steps_view(state)
+    elif case.current_step:
         out["pipeline_steps"] = [{"step": case.current_step, "status": "current", "detail": ""}]
     return out
 

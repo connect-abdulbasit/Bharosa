@@ -24,5 +24,6 @@ def families(user: User = Depends(require_role(Role.helper)), db: Session = Depe
         items.append({"family_id": fam.id, "head_name": citizen.name, "case_count": len(cases),
                       "open_cases": sum(1 for c in cases if c.status != "closed"),
                       "last_action": ("Case %s" % last.status.replace("_", " ")) if last else "No cases yet",
+                      "latest_case_status": last.status if last else None,
                       "consent_on_file": bool(ident and ident.status == "granted")})
     return {"items": items}

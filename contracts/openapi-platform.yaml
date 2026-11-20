@@ -120,6 +120,35 @@ paths:
             application/json:
               schema:
                 $ref: 'schemas.py#/ClaimResponse'
+  /claims/{id}:
+    get:
+      summary: GET /claims/{id}
+      x-roles: [any visible]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ClaimResponse'
+  /claims/{id}/resume:
+    post:
+      summary: POST /claims/{id}/resume (continue the pipeline from its saved step)
+      x-roles: [citizen,helper]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ClaimResponse'
+  /me/pin:
+    post:
+      summary: POST /me/pin (citizen sets the 4-digit PIN a helper needs to grant consent for them)
+      x-roles: [citizen]
+      responses:
+        '200':
+          description: '{"ok": true}'
   /messages/check:
     post:
       summary: POST /messages/check

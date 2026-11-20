@@ -43,6 +43,10 @@ def list_consent(citizen_id: Optional[str] = None, user: User = Depends(require_
 @router.post("/consent", response_model=ConsentRecord)
 def grant_consent(body: ConsentGrant, user: User = Depends(require_role(*OWNERS)), db: Session = Depends(get_db)):
     cid = resolve_citizen(db, user, body.citizen_id)
+    confirmed_by = None
+    if user.role == Role.helper.value:  # granting on someone's behalf needs the citizen's own PIN
+        consent_service.verify_citizen_pin(db, user, cid, body.pin)
+        confirmed_by = cid
     scope = body.scope.value
     c = consent_service.get_consent(db, cid, scope)
     before = {"status": c.status} if c else None
@@ -53,8 +57,8 @@ def grant_consent(body: ConsentGrant, user: User = Depends(require_role(*OWNERS)
         db.flush()
     else:
         c.status, c.granted_to = "granted", recipient
-    consent_service.record_event(db, c, "grant", user.id)
-    audit.log(db, "user", user.id, "consent.grant", "consent", c.id, before=before, after={"status": "granted", "scope": scope, "citizen_id": cid})
+    consent_service.record_event(db, c, "grant", user.id, confirmed_by=confirmed_by)
+    audit.log(db, "user", user.id, "consent.grant", "consent", c.id, before=before, after={"status": "granted", "scope": scope, "citizen_id": cid, "confirmed_by": confirmed_by})
     db.commit()
     return consent_record(db, c)
 

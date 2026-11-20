@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Rule, RuleVersion
+from app.services.jsonlogic import RuleError, validate_logic
 from app.services.serialize import iso
 from contracts import schemas
 
@@ -16,8 +17,20 @@ DEFAULT_LOGIC: Dict[str, Any] = {
 }
 DEFAULT_THRESHOLDS: Dict[str, Any] = {
     "auto_handle_min": 0.90, "ask_more_min": 0.60,
-    "red_flags": ["short_payment", "duplicate_payment", "lookalike_sender", "mock_service_failure"],
+    "red_flags": ["short_payment", "duplicate_payment", "lookalike_sender", "mock_service_failure", "claim_contradicts_ledger"],
 }
+
+
+def validate_rule(logic: Dict[str, Any], auto_handle_min: float, ask_more_min: float, red_flags: Any) -> None:
+    """Raise jsonlogic.RuleError (-> HTTP 422) with a clear message if the rule is not safe to publish."""
+    if not (0.0 <= ask_more_min <= auto_handle_min <= 1.0):
+        raise RuleError("Need 0 <= ask_more_min <= auto_handle_min <= 1 (got ask_more_min=%s, auto_handle_min=%s)" % (ask_more_min, auto_handle_min))
+    if auto_handle_min < 0.5:
+        raise RuleError("auto_handle_min below 0.5 is not allowed: it would auto-handle uncertain cases")
+    if not isinstance(red_flags, list) or len(red_flags) > 30 or any(not isinstance(f, str) or not f or len(f) > 50 for f in red_flags):
+        raise RuleError("red_flags must be a list of up to 30 short names")
+    if logic:
+        validate_logic(logic)
 
 
 def get_version(db: Session, rule_id: str, version: int) -> Optional[RuleVersion]:

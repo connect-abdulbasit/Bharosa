@@ -41,7 +41,8 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    case_id: Mapped[str] = mapped_column(ForeignKey("cases.id"), index=True)
+    case_id: Mapped[Optional[str]] = mapped_column(ForeignKey("cases.id"), index=True, nullable=True)  # set when attached to a claim
+    owner_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)  # the citizen the document is about
     kind: Mapped[str] = mapped_column(String(30))
     file_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ocr_fields: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
@@ -63,4 +64,19 @@ class Decision(Base):
     rule_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model_version: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     decided_by: Mapped[str] = mapped_column(String(36))  # 'ai' or a user id
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CheckedMessage(Base):
+    """Every scam check, for the evaluation page and a future Scam Map. Stores a hash, never the text."""
+
+    __tablename__ = "checked_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    text_hash: Mapped[str] = mapped_column(String(64), index=True)
+    label: Mapped[str] = mapped_column(String(10))
+    confidence: Mapped[float] = mapped_column(Float)
+    reasons: Mapped[List[str]] = mapped_column(JSON, default=list)
+    sender: Mapped[str] = mapped_column(String(60))
+    area: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -171,7 +171,8 @@ class EscalateRequest(BaseModel):
 
 
 class OfficerDecision(BaseModel):
-    action: str = Field(..., description="approve | reject | request_more")
+    action: str = Field(..., description="approve | reject | ask_more (request_more accepted as an alias)")
+    reason: Optional[str] = Field(None, description="REQUIRED (or `note`): why the officer decided this")
     note: Optional[str] = None
 
 
@@ -201,6 +202,7 @@ class ClaimResponse(BaseModel):
 class MessageCheckRequest(BaseModel):
     text: str
     sender: str
+    area: Optional[str] = None  # optional coarse area (e.g. district) for a future Scam Map
 
 
 class MessageCheckResponse(BaseModel):
@@ -270,6 +272,7 @@ class ConsentGrant(BaseModel):
     scope: ConsentScope
     shared_with: List[str] = Field(default_factory=list)
     citizen_id: Optional[str] = None  # helpers: the linked citizen granting
+    pin: Optional[str] = Field(None, description="Helpers granting for a citizen need that citizen's 4-digit PIN")
 
 
 class ConsentWithdraw(BaseModel):
@@ -308,6 +311,7 @@ class QueueItem(BaseModel):
     confidence: float
     recommended_action: DecisionAction
     reasons: List[str]
+    ai_reason: Optional[str] = None  # short, first reason from the latest decision
     waiting_since: str
 
 
@@ -321,6 +325,7 @@ class Family(BaseModel):
     case_count: int
     open_cases: int
     last_action: str
+    latest_case_status: Optional[CaseStatus] = None
     consent_on_file: bool
 
 

@@ -9,7 +9,7 @@ import sys
 from datetime import timedelta
 from typing import Dict, List, Tuple
 
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from app.auth.passwords import hash_password
@@ -50,20 +50,26 @@ def cnic(suffix: str) -> str:
 
 
 def run(db: Session, reset: bool = False) -> Dict[str, int]:
-    if reset:
+    if reset:  # development only
+        postgres = db.get_bind().dialect.name == "postgresql"
+        if postgres:  # the audit_log trigger blocks DELETE; switch it off just for this dev reset
+            db.execute(text("ALTER TABLE audit_log DISABLE TRIGGER USER"))
         for table in reversed(Base.metadata.sorted_tables):
             db.execute(delete(table))
+        if postgres:
+            db.execute(text("ALTER TABLE audit_log ENABLE TRIGGER USER"))
         db.commit()
     if db.query(User).count() > 0:
         return {"skipped": 1}
 
     pw = settings.DEMO_PASSWORDS
     hashes = {p: hash_password(p) for p in set(pw.values())}
+    pin_hash = hash_password(settings.DEMO_CITIZEN_PIN)  # FAKE demo PIN for every seeded citizen
     for i, (uid, uname, name, role) in enumerate(STAFF, start=1):
         db.add(User(id=uid, username=uname, name=name, phone="030000000%02d" % i, role=role, password_hash=hashes[pw[role]]))
     for i, (uid, uname, name, suffix) in enumerate(LINKED + [UNLINKED], start=1):
         db.add(User(id=uid, username=uname, name=name, phone="031100000%02d" % i, cnic=cnic(suffix), role="citizen",
-                    password_hash=hashes[pw["citizen"]]))
+                    password_hash=hashes[pw["citizen"]], pin_hash=pin_hash))
     db.flush()
 
     for i, (uid, *_rest) in enumerate(LINKED, start=1):

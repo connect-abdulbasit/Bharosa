@@ -60,3 +60,56 @@ def auth(client, username: str) -> dict:
     r = client.post("/auth/login", json={"username": username, "password": password_for(username)})
     assert r.status_code == 200, r.text
     return {"Authorization": "Bearer " + r.json()["access_token"]}
+
+
+class ScriptedMocks:
+    """Stand-in for the mocks service whose answers (and failures) a test controls. Records every call."""
+
+    name = "scripted"
+
+    def __init__(self, identity=None, payments=None, fail=None, senders=None):
+        self.identity_rec = identity or {"full_name": "Muhammad Aslam", "aliases": ["Mohammad Aslam"], "father_name": "Abdul Rehman"}
+        self.payments = payments if payments is not None else []
+        self.fail = set(fail or [])
+        self.official = senders or ["9090", "9090-SAHARA", "SAHARA-GOV"]
+        self.calls = []
+
+    def _go(self, name):
+        from app.services.mock_errors import MockUnavailable
+
+        self.calls.append(name)
+        if name in self.fail:
+            raise MockUnavailable("%s timed out (simulated)" % name)
+
+    def identity(self, cnic):
+        self._go("identity")
+        return dict(self.identity_rec, cnic=cnic, simulated=True)
+
+    def ledger(self, cnic):
+        self._go("ledger")
+        return {"cnic": cnic, "payments": list(self.payments), "simulated": True}
+
+    def complaint(self, cnic, category, description):
+        self._go("complaint")
+        return {"ticket_id": "TKT-TEST0001", "simulated": True}
+
+    def senders(self):
+        self._go("senders")
+        return {"senders": list(self.official), "simulated": True}
+
+    def notify(self, to, message, channel="sms"):
+        self._go("notify")
+        return {"message_id": "MSG-TEST0001", "simulated": True}
+
+
+@pytest.fixture()
+def mocks(monkeypatch):
+    m = ScriptedMocks()
+    for mod in ("claims", "cases", "messages"):
+        monkeypatch.setattr("app.routers.%s.get_mocks_client" % mod, lambda: m)
+    return m
+
+
+@pytest.fixture(autouse=True)
+def upload_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "UPLOAD_DIR", tmp_path / "uploads")

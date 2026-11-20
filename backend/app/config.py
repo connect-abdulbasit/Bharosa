@@ -13,6 +13,9 @@ class Settings:
     DATABASE_URL = _env("DATABASE_URL", "postgresql+psycopg2://bharosa:bharosa@localhost:5432/bharosa")
     JWT_SECRET = _env("JWT_SECRET", "dev-only-change-me-not-for-production-0000")
     JWT_ALGORITHM = "HS256"
+    UPLOAD_DIR = Path(_env("UPLOAD_DIR", str(Path(__file__).resolve().parents[1] / "uploads")))
+    MAX_UPLOAD_BYTES = int(_env("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024)))
+    DEMO_CITIZEN_PIN = _env("DEMO_CITIZEN_PIN", "1234")  # FAKE, prototype only
     BCRYPT_ROUNDS = int(_env("BCRYPT_ROUNDS", "12"))
     JWT_EXPIRES_SECONDS = int(_env("JWT_EXPIRES_SECONDS", "3600"))
     CORS_ORIGINS = [o.strip() for o in _env("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
