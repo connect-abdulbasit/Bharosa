@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "case_id": "case-0001",
+      "citizen_name": "Mohammad Aslam",
+      "risk_score": 0.72,
+      "confidence": 0.58,
+      "recommended_action": "send_to_human",
+      "reasons": [
+        "Short payment of PKR 4000",
+        "Name matched via spelling variant"
+      ],
+      "waiting_since": "2026-11-20T09:15:30Z"
+    },
+    {
+      "case_id": "case-0005",
+      "citizen_name": "Rashid Mehmood",
+      "risk_score": 0.64,
+      "confidence": 0.66,
+      "recommended_action": "ask_more",
+      "reasons": [
+        "Duplicate payment entry in ledger"
+      ],
+      "waiting_since": "2026-11-20T08:40:00Z"
+    },
+    {
+      "case_id": "case-0002",
+      "citizen_name": "Zubaida Khatoon",
+      "risk_score": 0.35,
+      "confidence": 0.71,
+      "recommended_action": "ask_more",
+      "reasons": [
+        "ID photo slightly blurred"
+      ],
+      "waiting_since": "2026-11-19T16:20:00Z"
+    }
+  ]
+}

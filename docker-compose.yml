@@ -1,0 +1,35 @@
+# Starts postgres, backend and mocks. The frontend runs separately: cd frontend && npm run dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bharosa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bharosa}
+      POSTGRES_DB: ${POSTGRES_DB:-bharosa}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bharosa}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  mocks:
+    build: { context: ., dockerfile: mocks/Dockerfile }
+    ports: ["8001:8001"]
+
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: [.env.example]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-bharosa}:${POSTGRES_PASSWORD:-bharosa}@postgres:5432/${POSTGRES_DB:-bharosa}
+      MOCKS_URL: http://mocks:8001
+      AI_MODE: ${AI_MODE:-stub}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-not-for-production-0000}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      mocks: { condition: service_started }
+
+volumes:
+  postgres-data:

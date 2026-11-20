@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "id": "aud-001",
+      "timestamp": "2026-11-20T09:12:00Z",
+      "actor": "u-citizen-1",
+      "actor_type": "user",
+      "action": "claim.create",
+      "target": "claim-0001",
+      "before": null,
+      "after": {
+        "status": "submitted"
+      }
+    },
+    {
+      "id": "aud-002",
+      "timestamp": "2026-11-20T09:12:05Z",
+      "actor": "ai:extract_claim",
+      "actor_type": "ai",
+      "action": "ai.extract_claim",
+      "target": "claim-0001",
+      "before": null,
+      "after": {
+        "confidence": 0.81,
+        "model_version": "stub-0.1"
+      }
+    },
+    {
+      "id": "aud-003",
+      "timestamp": "2026-11-20T09:15:30Z",
+      "actor": "agent:pipeline",
+      "actor_type": "agent",
+      "action": "case.decide",
+      "target": "case-0001",
+      "before": {
+        "status": "submitted"
+      },
+      "after": {
+        "status": "with_officer",
+        "action": "send_to_human",
+        "rule_version": 3
+      }
+    },
+    {
+      "id": "aud-004",
+      "timestamp": "2026-11-20T14:00:00Z",
+      "actor": "u-citizen-1",
+      "actor_type": "user",
+      "action": "consent.withdraw",
+      "target": "consent-003",
+      "before": {
+        "granted": true
+      },
+      "after": {
+        "granted": false
+      }
+    }
+  ],
+  "total": 4
+}

@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: Bharosa Mock Services
+  version: 0.1.0
+  description: ALL responses include simulated:true. Chaos switches alter identity/ledger/complaints/senders/notify responses.
+paths:
+  /identity/{cnic}:
+    get:
+      summary: GET /identity/{cnic}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/PersonRecord'
+  /ledger/{cnic}:
+    get:
+      summary: GET /ledger/{cnic}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/LedgerResponse'
+  /complaints:
+    post:
+      summary: POST /complaints
+      x-request-schema: ComplaintCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ComplaintResponse'
+  /senders:
+    get:
+      summary: GET /senders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/SendersResponse'
+  /notify:
+    post:
+      summary: POST /notify
+      x-request-schema: NotifyRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/NotifyResponse'
+  /chaos:
+    get:
+      summary: GET /chaos
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ChaosState'
+    post:
+      summary: POST /chaos
+      x-request-schema: ChaosUpdate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ChaosState'
+  /chaos/reset:
+    post:
+      summary: POST /chaos/reset
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ChaosState'

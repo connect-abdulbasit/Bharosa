@@ -1,0 +1,67 @@
+{
+  "claim_id": "claim-0001",
+  "case_id": "case-0001",
+  "status": "with_officer",
+  "draft": {
+    "claimant_name": "Mohammad Aslam",
+    "cnic": "0000042101001",
+    "programme": "Sahara Relief Programme",
+    "claim_type": "short_paid",
+    "amount_claimed_pkr": 4000,
+    "period": "2026-10",
+    "details": "Received 8000 instead of 12000",
+    "confidence": 0.81,
+    "model_version": "stub-0.1"
+  },
+  "decision": {
+    "action": "send_to_human",
+    "confidence": 0.58,
+    "reasons": [
+      "Ledger shows PKR 8000 paid, programme amount is PKR 12000",
+      "Name matched with a spelling variant (Mohammad/Muhammad)"
+    ],
+    "trace": {
+      "match_score": 0.88,
+      "doc_confidence": 0.74,
+      "red_flags": [
+        "short_payment"
+      ],
+      "thresholds": {
+        "auto_handle_min": 0.9,
+        "ask_more_min": 0.6
+      }
+    },
+    "rule_version": 3,
+    "requires_officer_approval": true,
+    "model_version": "stub-0.1"
+  },
+  "explanation_ur": "آپ کی رقم میں 4000 روپے کم ملے ہیں۔ ہم نے آپ کا کیس افسر کو بھیج دیا ہے۔ وہ دو دن میں آپ سے رابطہ کریں گے۔",
+  "explanation_en": "You were paid PKR 4000 less than expected. We have sent your case to an officer, who will contact you within two days.",
+  "pipeline_steps": [
+    {
+      "step": "consent_check",
+      "status": "done",
+      "detail": "identity, payments consent on file"
+    },
+    {
+      "step": "extract_claim",
+      "status": "done",
+      "detail": "confidence 0.81"
+    },
+    {
+      "step": "match_person",
+      "status": "done",
+      "detail": "Mohammad Aslam ~ Muhammad Aslam score 0.88"
+    },
+    {
+      "step": "ledger_lookup",
+      "status": "done",
+      "detail": "1 payment of PKR 8000 found, PKR 12000 expected"
+    },
+    {
+      "step": "decide",
+      "status": "done",
+      "detail": "send_to_human: short payment is a red flag"
+    }
+  ]
+}

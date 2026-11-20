@@ -1,0 +1,7 @@
+[
+  {"cnic": "0000042101001", "full_name": "Muhammad Aslam", "father_name": "Abdul Rehman", "date_of_birth": "1984-03-12", "district": "Karachi East", "aliases": ["Mohammad Aslam", "M. Aslam"], "phone_last4": "4471"},
+  {"cnic": "0000042101002", "full_name": "Fatima Noor", "father_name": "Noor Muhammad", "date_of_birth": "1979-07-01", "district": "Karachi West", "aliases": ["Fatima Bibi", "Fatma Noor"], "phone_last4": "9902"},
+  {"cnic": "0000042101003", "full_name": "Zubaida Khatoon", "father_name": "Ghulam Hussain", "date_of_birth": "1968-11-23", "district": "Malir", "aliases": ["Zubeda Khatun"], "phone_last4": "1356"},
+  {"cnic": "0000042101004", "full_name": "Gul Bano", "father_name": "Mir Hassan", "date_of_birth": "1990-01-30", "district": "Korangi", "aliases": ["Gul Bano Bibi"], "phone_last4": "7720"},
+  {"cnic": "0000042101005", "full_name": "Rashid Mehmood", "father_name": "Mehmood Ahmed", "date_of_birth": "1975-09-09", "district": "Karachi Central", "aliases": ["Rasheed Mahmood", "Mohammad Rashid"], "phone_last4": "3085"}
+]

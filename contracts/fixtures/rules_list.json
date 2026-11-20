@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "id": "rule-sahara-1",
+      "name": "Sahara stipend decision rule",
+      "current_version": 3,
+      "updated_at": "2026-11-19T08:00:00Z"
+    }
+  ]
+}

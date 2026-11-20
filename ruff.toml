@@ -1,0 +1,7 @@
+line-length = 120
+target-version = "py39"
+extend-exclude = ["frontend", ".venv"]
+
+[lint]
+select = ["E", "F"]
+ignore = ["E501", "E402", "E701"]

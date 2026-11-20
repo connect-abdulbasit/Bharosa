@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "family_id": "fam-001",
+      "head_name": "Fatima Bibi",
+      "case_count": 2,
+      "open_cases": 1,
+      "last_action": "Scam message checked",
+      "consent_on_file": true
+    },
+    {
+      "family_id": "fam-002",
+      "head_name": "Muhammad Rafiq",
+      "case_count": 1,
+      "open_cases": 1,
+      "last_action": "ID photo retake requested",
+      "consent_on_file": true
+    },
+    {
+      "family_id": "fam-003",
+      "head_name": "Gul Bano",
+      "case_count": 1,
+      "open_cases": 0,
+      "last_action": "Claim approved",
+      "consent_on_file": false
+    }
+  ]
+}

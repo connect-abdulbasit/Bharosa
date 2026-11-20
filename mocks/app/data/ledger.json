@@ -1,0 +1,7 @@
+{
+  "0000042101001": [{"payment_id": "pay-1001", "amount_pkr": 8000, "date": "2026-10-05", "agent_id": "agent-017", "programme": "Sahara Relief Programme"}],
+  "0000042101002": [{"payment_id": "pay-1002", "amount_pkr": 12000, "date": "2026-10-05", "agent_id": "agent-017", "programme": "Sahara Relief Programme"}],
+  "0000042101003": [],
+  "0000042101004": [{"payment_id": "pay-1004", "amount_pkr": 12000, "date": "2026-09-05", "agent_id": "agent-022", "programme": "Sahara Relief Programme"}],
+  "0000042101005": [{"payment_id": "pay-1005", "amount_pkr": 12000, "date": "2026-10-06", "agent_id": "agent-031", "programme": "Sahara Relief Programme"}]
+}

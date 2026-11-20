@@ -1,0 +1,170 @@
+{
+  "rule_id": "rule-sahara-1",
+  "versions": [
+    {
+      "rule_id": "rule-sahara-1",
+      "version": 3,
+      "name": "Sahara stipend decision rule",
+      "auto_handle_min": 0.9,
+      "ask_more_min": 0.6,
+      "red_flags": [
+        "short_payment",
+        "duplicate_payment",
+        "lookalike_sender",
+        "mock_service_failure"
+      ],
+      "logic": {
+        "if": [
+          {
+            "and": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.9
+                ]
+              },
+              {
+                "==": [
+                  {
+                    "var": "red_flags.length"
+                  },
+                  0
+                ]
+              }
+            ]
+          },
+          "auto_handle",
+          {
+            "if": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.6
+                ]
+              },
+              "ask_more",
+              "send_to_human"
+            ]
+          }
+        ]
+      },
+      "created_by": "u-admin-1",
+      "created_at": "2026-11-19T08:00:00Z",
+      "note": "Raised ask_more floor from 0.55"
+    },
+    {
+      "rule_id": "rule-sahara-1",
+      "version": 2,
+      "name": "Sahara stipend decision rule",
+      "auto_handle_min": 0.9,
+      "ask_more_min": 0.55,
+      "red_flags": [
+        "short_payment",
+        "duplicate_payment",
+        "lookalike_sender",
+        "mock_service_failure"
+      ],
+      "logic": {
+        "if": [
+          {
+            "and": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.9
+                ]
+              },
+              {
+                "==": [
+                  {
+                    "var": "red_flags.length"
+                  },
+                  0
+                ]
+              }
+            ]
+          },
+          "auto_handle",
+          {
+            "if": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.6
+                ]
+              },
+              "ask_more",
+              "send_to_human"
+            ]
+          }
+        ]
+      },
+      "created_by": "u-admin-1",
+      "created_at": "2026-11-18T08:00:00Z",
+      "note": "Initial thresholds"
+    },
+    {
+      "rule_id": "rule-sahara-1",
+      "version": 1,
+      "name": "Sahara stipend decision rule",
+      "auto_handle_min": 0.95,
+      "ask_more_min": 0.55,
+      "red_flags": [
+        "short_payment",
+        "duplicate_payment",
+        "lookalike_sender",
+        "mock_service_failure"
+      ],
+      "logic": {
+        "if": [
+          {
+            "and": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.9
+                ]
+              },
+              {
+                "==": [
+                  {
+                    "var": "red_flags.length"
+                  },
+                  0
+                ]
+              }
+            ]
+          },
+          "auto_handle",
+          {
+            "if": [
+              {
+                ">=": [
+                  {
+                    "var": "confidence"
+                  },
+                  0.6
+                ]
+              },
+              "ask_more",
+              "send_to_human"
+            ]
+          }
+        ]
+      },
+      "created_by": "u-admin-1",
+      "created_at": "2026-11-17T08:00:00Z",
+      "note": "Strict first draft"
+    }
+  ]
+}

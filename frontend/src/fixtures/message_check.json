@@ -1,0 +1,13 @@
+{
+  "label": "scam",
+  "confidence": 0.96,
+  "reasons": [
+    "Sender 'SAHARA-INFO' is not the official code 9090",
+    "Asks you to send an advance fee",
+    "Contains a shortened link"
+  ],
+  "official_sender": false,
+  "explanation_ur": "یہ پیغام جعلی ہے۔ سرکاری کوڈ 9090 ہے۔ کوئی لنک نہ کھولیں اور کسی کو پیسے نہ بھیجیں۔",
+  "explanation_en": "This message looks fake. The official code is 9090. Do not open the link or send any money.",
+  "model_version": "stub-0.1"
+}

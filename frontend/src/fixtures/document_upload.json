@@ -1,0 +1,15 @@
+{
+  "document_id": "doc-0001",
+  "fields": {
+    "name": "Muhammad Aslam",
+    "cnic": "0000042101001",
+    "father_name": "Abdul Rehman"
+  },
+  "blur_score": 0.18,
+  "format_ok": true,
+  "confidence": 0.86,
+  "retake_needed": false,
+  "explanation_ur": "تصویر صاف ہے۔ نام اور شناختی نمبر پڑھ لیے گئے ہیں۔",
+  "explanation_en": "The photo is clear. Name and ID number were read.",
+  "model_version": "stub-0.1"
+}

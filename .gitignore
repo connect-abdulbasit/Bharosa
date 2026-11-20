@@ -1,0 +1,24 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+eval_results.json
+# node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+# os / ide
+.DS_Store
+.idea/
+.vscode/
+# docker
+postgres-data/

@@ -1,0 +1,278 @@
+openapi: 3.0.3
+info:
+  title: Bharosa Platform API
+  version: 0.1.0
+  description: Python models live in contracts/schemas.py; example responses in contracts/fixtures/. Roles enforced server-side.
+paths:
+  /auth/login:
+    post:
+      summary: POST /auth/login
+      x-roles: [public]
+      x-request-schema: LoginRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/TokenResponse'
+  /me:
+    get:
+      summary: GET /me
+      x-roles: [any]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/Me'
+  /cases:
+    get:
+      summary: GET /cases
+      x-roles: [any]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseListResponse'
+    post:
+      summary: POST /cases
+      x-roles: [citizen,helper]
+      x-request-schema: CaseCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /cases/{id}:
+    get:
+      summary: GET /cases/{id}
+      x-roles: [any (citizen: own cases only)]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /cases/{id}/assign:
+    post:
+      summary: POST /cases/{id}/assign
+      x-roles: [officer,admin]
+      x-request-schema: AssignRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /cases/{id}/escalate:
+    post:
+      summary: POST /cases/{id}/escalate
+      x-roles: [helper,officer]
+      x-request-schema: EscalateRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /cases/{id}/decide:
+    post:
+      summary: POST /cases/{id}/decide
+      x-roles: [officer]
+      x-request-schema: OfficerDecision
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /cases/{id}/close:
+    post:
+      summary: POST /cases/{id}/close
+      x-roles: [officer,admin]
+      x-request-schema: CloseRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/CaseDetail'
+  /claims:
+    post:
+      summary: POST /claims
+      x-roles: [citizen,helper]
+      x-request-schema: ClaimCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ClaimResponse'
+  /messages/check:
+    post:
+      summary: POST /messages/check
+      x-roles: [any]
+      x-request-schema: MessageCheckRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/MessageCheckResponse'
+  /documents:
+    post:
+      summary: POST /documents
+      x-roles: [citizen,helper]
+      x-request-schema: multipart file
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/DocumentResponse'
+  /rules:
+    get:
+      summary: GET /rules
+      x-roles: [officer,admin,auditor]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/RuleListResponse'
+  /rules/{id}/versions:
+    get:
+      summary: GET /rules/{id}/versions
+      x-roles: [officer,admin,auditor]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/RuleVersionsResponse'
+    post:
+      summary: POST /rules/{id}/versions
+      x-roles: [admin]
+      x-request-schema: RuleVersionCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/RuleVersion'
+  /consent:
+    get:
+      summary: GET /consent
+      x-roles: [citizen,helper]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ConsentListResponse'
+    post:
+      summary: POST /consent
+      x-roles: [citizen,helper]
+      x-request-schema: ConsentGrant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ConsentRecord'
+  /consent/{id}/withdraw:
+    post:
+      summary: POST /consent/{id}/withdraw
+      x-roles: [citizen,helper]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ConsentRecord'
+  /audit:
+    get:
+      summary: GET /audit
+      x-roles: [auditor,admin]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/AuditListResponse'
+  /queue:
+    get:
+      summary: GET /queue
+      x-roles: [officer,admin]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/QueueResponse'
+  /helper/families:
+    get:
+      summary: GET /helper/families
+      x-roles: [helper]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/HelperFamiliesResponse'
+  /apikeys:
+    get:
+      summary: GET /apikeys
+      x-roles: [admin]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ApiKeyListResponse'
+    post:
+      summary: POST /apikeys
+      x-roles: [admin]
+      x-request-schema: ApiKeyCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ApiKeyRecord'
+  /eval:
+    get:
+      summary: GET /eval
+      x-roles: [officer,admin,auditor]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/EvalResults'

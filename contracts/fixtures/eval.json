@@ -1,0 +1,39 @@
+{
+  "model_version": "stub-0.1",
+  "generated_at": "2026-11-20T12:00:00Z",
+  "classifier": {
+    "accuracy": 0.94,
+    "precision_scam": 0.95,
+    "recall_scam": 0.92
+  },
+  "matching": {
+    "top1_accuracy": 0.91,
+    "false_match_rate": 0.02
+  },
+  "decision": {
+    "auto_handle": 41,
+    "ask_more": 33,
+    "send_to_human": 26,
+    "wrong_approvals": 1,
+    "wrong_rejections": 3,
+    "human_reviews": 26
+  },
+  "cost_assumptions": {
+    "wrong_approval": 10,
+    "wrong_rejection": 5,
+    "human_review": 1
+  },
+  "total_cost": 51,
+  "confusion": {
+    "scam": {
+      "scam": 46,
+      "genuine": 2,
+      "unsure": 2
+    },
+    "genuine": {
+      "scam": 1,
+      "genuine": 44,
+      "unsure": 5
+    }
+  }
+}
