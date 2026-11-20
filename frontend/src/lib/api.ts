@@ -22,6 +22,9 @@ import fx_message_check from "@/fixtures/message_check.json";
 import fx_queue from "@/fixtures/queue.json";
 import fx_rule_versions from "@/fixtures/rule_versions.json";
 import fx_rules_list from "@/fixtures/rules_list.json";
+// Frontend-only fixtures (not in /contracts yet; see frontend/CLAUDE.md).
+import fx_users from "@/fixtures/local/users.json";
+import fx_twin from "@/fixtures/local/twin_proposals.json";
 
 export type ApiMode = "fixtures" | "live";
 export const API_MODE: ApiMode = process.env.NEXT_PUBLIC_API_MODE === "live" ? "live" : "fixtures";
@@ -30,6 +33,8 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000
 type Route = { method: string; pattern: RegExp; data: unknown };
 
 const ROUTES: Route[] = [
+  { method: "GET", pattern: new RegExp("^/users$"), data: fx_users },
+  { method: "GET", pattern: new RegExp("^/twin/proposals$"), data: fx_twin },
   { method: "POST", pattern: new RegExp("^/auth/login$"), data: fx_auth_login },
   { method: "GET", pattern: new RegExp("^/me$"), data: fx_me },
   { method: "GET", pattern: new RegExp("^/cases$"), data: fx_cases_list },

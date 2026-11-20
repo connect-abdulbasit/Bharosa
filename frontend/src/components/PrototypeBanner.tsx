@@ -1,4 +1,4 @@
-export function Banner() {
+export function PrototypeBanner() {
   return (
     <div
       role="note"

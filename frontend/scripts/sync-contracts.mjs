@@ -7,8 +7,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const fixturesSrc = join(root, "contracts", "fixtures");
 const fixturesDst = join(root, "frontend", "src", "fixtures");
 
-rmSync(fixturesDst, { recursive: true, force: true });
+// Only top-level synced files are replaced. Frontend-only fixtures live in src/fixtures/local/ and are kept.
 mkdirSync(fixturesDst, { recursive: true });
+for (const f of readdirSync(fixturesDst).filter((n) => n.endsWith(".json"))) {
+  rmSync(join(fixturesDst, f));
+}
 for (const f of readdirSync(fixturesSrc).filter((n) => n.endsWith(".json"))) {
   copyFileSync(join(fixturesSrc, f), join(fixturesDst, f));
 }

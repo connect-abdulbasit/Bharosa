@@ -1,0 +1,42 @@
+{
+  "past_cases_total": 100,
+  "proposals": [
+    {
+      "id": "prop-1",
+      "title": "Raise auto_handle from 0.90 to 0.95",
+      "description": "Stricter automatic handling: fewer cases skip a human check.",
+      "change": { "auto_handle_min": 0.95, "ask_more_min": 0.6 },
+      "would_change": 14,
+      "breakdown": { "auto_handle_to_ask_more": 11, "ask_more_to_send_to_human": 3 },
+      "estimated_cost_delta": -4,
+      "examples": [
+        { "case_id": "case-0003", "citizen_name": "Gul Bano", "old": "auto_handle", "new": "ask_more" },
+        { "case_id": "case-0002", "citizen_name": "Zubaida Khatoon", "old": "ask_more", "new": "send_to_human" }
+      ]
+    },
+    {
+      "id": "prop-2",
+      "title": "Lower ask_more floor from 0.60 to 0.50",
+      "description": "Fewer cases go straight to an officer; more get a request for proof.",
+      "change": { "auto_handle_min": 0.9, "ask_more_min": 0.5 },
+      "would_change": 9,
+      "breakdown": { "send_to_human_to_ask_more": 9 },
+      "estimated_cost_delta": 6,
+      "examples": [
+        { "case_id": "case-0001", "citizen_name": "Mohammad Aslam", "old": "send_to_human", "new": "ask_more" }
+      ]
+    },
+    {
+      "id": "prop-3",
+      "title": "Add 'name matched via variant' as a red flag",
+      "description": "Any spelling-variant match always goes to a person.",
+      "change": { "red_flags_add": ["name_variant_match"] },
+      "would_change": 22,
+      "breakdown": { "auto_handle_to_send_to_human": 8, "ask_more_to_send_to_human": 14 },
+      "estimated_cost_delta": -9,
+      "examples": [
+        { "case_id": "case-0001", "citizen_name": "Mohammad Aslam", "old": "ask_more", "new": "send_to_human" }
+      ]
+    }
+  ]
+}

@@ -100,6 +100,21 @@ npm run dev                     # http://localhost:3000, fixtures mode by defaul
 | admin | `admin` | `admin-demo-123` |
 | auditor | `auditor` | `auditor-demo-123` |
 
+## Frontend screens
+Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress). Runs without a backend in `fixtures` mode.
+
+| Route | Who | What |
+|---|---|---|
+| `/` | everyone | Landing: pitch, problem, Check / Claim / Control cards, prototype notice |
+| `/login` | everyone | Demo users (fake) or username + password |
+| `/citizen`, `/citizen/check`, `/citizen/claim`, `/citizen/status`, `/citizen/data` | citizen, helper | Home, scam check, voice + photo claim, claim timeline, consent (stub) |
+| `/helper`, `/helper/[familyId]` | helper | Family list; one person's case with "switch person" |
+| `/officer`, `/officer/case/[id]` | officer | Review queue; case detail with confidence, reasons, rule version, trace, decision buttons |
+| `/admin`, `/admin/rules`, `/admin/twin`, `/admin/chaos` | admin | Users and roles; rule editor (stub); Digital Twin; Chaos Panel (stub) |
+| `/auditor`, `/eval` | auditor / officer, admin | Audit log (stub); evaluation (stub) |
+
+Components: `PrototypeBanner`, `PageShell`, `RoleGuard`, `BigIconButton`, `MicButton`, `ReadAloud`, `PhotoCapture`, `StatusTimeline`. Progress is saved per person in IndexedDB (`src/lib/offline.ts`). Details: [frontend/CLAUDE.md](frontend/CLAUDE.md).
+
 ## Environment flags
 | Flag | Values | Meaning |
 |---|---|---|

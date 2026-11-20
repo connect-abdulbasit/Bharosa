@@ -18,19 +18,48 @@ Read the root `CLAUDE.md` first. Also read `AGENTS.md`: this Next.js version has
 - Show uncertainty honestly: low confidence -> say "we need a person to check", never a confident-looking guess.
 - No real personal data; use fixtures.
 
-## Routes (all exist as stubs)
-`/login`, `/citizen`, `/citizen/check`, `/citizen/claim`, `/citizen/data`, `/helper`, `/officer`, `/admin/rules`, `/admin/chaos`, `/auditor`, `/eval`, plus PWA manifest (`src/app/manifest.ts`).
+## Routes (17 pages, all wrapped in `PageShell`: prototype banner + `RoleGuard`)
+| Route | Role(s) | Status |
+|---|---|---|
+| `/` | public | Landing page (pitch, problem, 3 big cards, prototype notice, Login / Try demo) |
+| `/login` | public | Working: demo user buttons + form (fixtures mode checks the fake demo passwords locally; live mode calls `/auth/login` + `/me`) |
+| `/citizen` | citizen, helper | Home with `BigIconButton`s |
+| `/citizen/check` | citizen, helper | Working: scam verdict + `ReadAloud` |
+| `/citizen/claim` | citizen, helper | Working: `MicButton` + `PhotoCapture`, progress saved in IndexedDB per person, result + `ReadAloud` |
+| `/citizen/status` | citizen, helper | Claim timeline (`StatusTimeline`) + `ReadAloud` |
+| `/citizen/data` | citizen, helper | Stub (TODO(Hani): consent see/share/withdraw/correct) |
+| `/helper` | helper | Family list |
+| `/helper/[familyId]` | helper | One person's case: "now helping" banner, status, consent, voice note saved per person, "Switch person" clears the screen. Accepts `1` or `fam-001` |
+| `/officer` | officer, admin | Review queue |
+| `/officer/case/[id]` | officer, admin | Case detail, AI confidence, reasons, rule version, full trace, notes, Approve / Reject / Ask for more proof (officer only) |
+| `/admin` | admin | Users and roles list |
+| `/admin/rules` | admin | Stub (TODO(Hani): versioned rule editor) |
+| `/admin/twin` | admin | Digital Twin: pick a rule change, see "X past cases would change decision" (fixture data) |
+| `/admin/chaos` | admin | Stub (TODO(Hani): Chaos Panel UI over Hadi's `/chaos`) |
+| `/auditor` | auditor, admin | Stub (TODO(Hani): audit log viewer) |
+| `/eval` | officer, admin, auditor | Stub (TODO(Hani): evaluation dashboard) |
+
+PWA manifest: `src/app/manifest.ts`. Dynamic pages that call `useParams()` must be wrapped in `<Suspense>` (Next 16 build fails otherwise).
+
+## Components (`src/components`)
+`PrototypeBanner` (on every page via `PageShell`), `PageShell`, `RoleGuard` (UX-only redirect to `/login`), `SessionBar`, `BigIconButton` (icon + English + Urdu), `MicButton` (Urdu `ur-PK` speech with Yes/No confirm; typed fallback), `ReadAloud` (Urdu voice if available, otherwise English), `PhotoCapture` (camera/file, preview, retake), `StatusTimeline`.
+
+## Lib (`src/lib`)
+`api.ts` (fixtures/live), `auth.ts` (session in localStorage, demo users), `offline.ts` (IndexedDB via `idb`: `saveProgress/loadProgress/clearProgress` per page and per person), `speech.ts` (recognition + synthesis helpers), `types.ts` (hand-written response types), `enums.ts` (synced).
+
+## Frontend-only fixtures (move to `/contracts` later)
+Kept in `src/fixtures/local/` so `npm run sync-contracts` never deletes them. Not in `/contracts` and **no backend endpoint exists yet**:
+- `users.json` -> `GET /users` (admin users list). TODO(Basit): add endpoint + contract.
+- `twin_proposals.json` -> `GET /twin/proposals` (Digital Twin). TODO(Hadi): own the real simulation, then add to contracts.
+Also: `/citizen/status` and `/helper/[familyId]` use the first case from `GET /cases` because the backend does not link cases to families yet.
 
 ## Tasks
-- [ ] TODO(Hani): login + role-based redirect, JWT storage, logout.
-- [ ] TODO(Hani): Citizen home with big-icon Check / Claim / My data.
-- [ ] TODO(Hani): Check screen: paste SMS -> verdict, confidence, reasons, read-aloud (ur/en).
-- [ ] TODO(Hani): Claim screen: voice recording (Urdu), ID photo with blur retake prompt, saved progress, submit, explanation.
-- [ ] TODO(Hani): Data & consent: see / share / withdraw / correct per scope.
-- [ ] TODO(Hani): Helper Mode: ~40 families, per-family consent, quick switch.
-- [ ] TODO(Hani): Officer queue (risk/confidence sort), case detail, approve/reject/ask more.
-- [ ] TODO(Hani): Admin rule editor (versions), Chaos Panel UI (calls Hadi's `/chaos`), Auditor log, Eval dashboard.
-- [ ] TODO(Hani): service worker/offline shell, low-bandwidth mode, notifications UI.
+- [x] Login + role redirect, session, logout (demo users).
+- [x] Landing, citizen home/check/claim/status, helper list + person view, officer queue + case, admin users, Digital Twin.
+- [x] Read-aloud on every citizen result; saved progress on claim and helper person pages.
+- [ ] TODO(Hani): `/citizen/data` consent screen, `/admin/rules`, `/admin/chaos`, `/auditor`, `/eval`.
+- [ ] TODO(Hani): service worker / offline shell, low-bandwidth mode, notifications UI.
+- [ ] TODO(Hani): blur check hint from `/documents` in `PhotoCapture`; real audio capture for Urdu where `SpeechRecognition` is missing.
 - [ ] TODO(Hani): Vercel deploy; URL in README.
 
 ## Run / test
