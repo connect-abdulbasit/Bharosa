@@ -174,6 +174,7 @@ class CaseDetail(CaseSummary):
     explanation_en: Optional[str] = None
     pipeline_steps: List[Dict[str, Any]] = Field(default_factory=list)
     rule_version: Optional[int] = None
+    image_url: Optional[str] = None  # ID photo attached to the claim; GET it with the same auth (RBAC like the case)
 
 
 class AssignRequest(BaseModel):
@@ -376,6 +377,7 @@ class Family(BaseModel):
     last_action: str
     latest_case_status: Optional[CaseStatus] = None
     consent_on_file: bool
+    citizen_id: Optional[str] = None  # the citizen's user id: used as on_behalf_of / citizen_id by the helper screens
 
 
 class HelperFamiliesResponse(BaseModel):
