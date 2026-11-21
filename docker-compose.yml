@@ -26,6 +26,8 @@ services:
       # real mocks by default; run the demo scenarios with the built-in fake mocks:  BACKEND_MOCKS_URL= docker compose up
       MOCKS_URL: ${BACKEND_MOCKS_URL-http://mocks:8001}
       AI_MODE: ${AI_MODE:-stub}
+      # what "this month" means in claim speech. The demo data (ledger, the open duplicate case) is for 2026-10
+      AI_DEFAULT_PERIOD: ${AI_DEFAULT_PERIOD:-2026-10}
       PIPELINE_MODE: thread
       UPLOAD_DIR: /data/uploads
       SEED_ON_START: "1"   # idempotent demo data (fake). Set to 0 to disable
