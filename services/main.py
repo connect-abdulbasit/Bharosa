@@ -32,7 +32,7 @@ class Send(BaseModel):
     cnic: str = Field(..., pattern=r"^\d{13}$")
     to: str = Field(..., max_length=40)
     key: str
-    lang: str = "ur"
+    lang: str = "ur"  # ur | en | both
 
 
 class Sub(BaseModel):
