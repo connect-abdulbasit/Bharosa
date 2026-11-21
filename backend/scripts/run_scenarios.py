@@ -4,11 +4,12 @@
     python backend/scripts/run_scenarios.py [BASE_URL]        (default http://localhost:8000)
 
 It first resets the demo state (POST /admin/demo/reset with include_rules=true), so it is safe to run repeatedly.
-The scenario citizens exist in the backend's BUILT-IN fake mocks: run the backend with MOCKS_URL empty
-(docker: `BACKEND_MOCKS_URL= docker compose up`). The scenario data comes from contracts/fixtures/demo_people.json.
+Works with the backend's BUILT-IN fake mocks (MOCKS_URL empty) and with the REAL mocks service (it serves the same
+people, generated from contracts/fixtures/demo_people.json; set MOCKS_HOST_URL if it is not http://localhost:8001).
 Exit code 0 = every scenario behaved as documented in docs/demo-scenarios.md.
 """
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -18,6 +19,19 @@ BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000").rstrip("/
 PASSWORD = "citizen-demo-123"  # FAKE demo passwords (see README)
 SAY = {"transcript": "mujhe is mahine ke paisay nahi mile"}
 SHORT = {"transcript": "mujhe paisay kam mile hain"}
+
+
+MOCKS = {"url": None}  # set in main() when the backend uses the REAL mocks service
+
+
+def outage(on):
+    """Identity outage: the fake client's switch via the admin API, or the real mocks' own chaos switch (error_500)."""
+    if MOCKS["url"]:
+        req = urllib.request.Request(MOCKS["url"] + "/chaos", method="POST", data=json.dumps({"error_500": bool(on)}).encode(),
+                                     headers={"content-type": "application/json"})
+        urllib.request.urlopen(req, timeout=10).read()
+    else:
+        call("POST", "/admin/demo/chaos", {"identity_down": bool(on)}, _tokens["admin"])
 
 
 def call(method, path, body=None, token=None):
@@ -138,13 +152,13 @@ def s5(t):
 
 
 def s6(t):
-    call("POST", "/admin/demo/chaos", {"identity_down": True}, t["admin"])
+    outage(True)
     tok = login("s6-idown")
     c = file_claim(tok)
     show(c)
     print("   identity_lookup: %s - %s" % (steps(c)["identity_lookup"]["status"], steps(c)["identity_lookup"]["detail"]))
     assert c["status"] == "with_officer" and steps(c)["identity_lookup"]["status"] == "failed"
-    call("POST", "/admin/demo/chaos", {"identity_down": False}, t["admin"])
+    outage(False)
     call("POST", "/claims/%s/resume" % c["claim_id"], token=tok)
     r = settle(tok, c["claim_id"])
     print("   service back, resume -> status=%s, steps done=%d/8" % (r["status"], sum(1 for x in r["pipeline_steps"] if x["status"] == "done")))
@@ -172,8 +186,10 @@ def main():
     if s != 200:
         raise SystemExit("backend not healthy: %s %s" % (s, h))
     if h["mocks"]["mode"] != "fake":
-        raise SystemExit("The scenario citizens live in the backend's built-in fake mocks, but real mocks are in use (%s).\n"
-                         "Run the backend with MOCKS_URL empty (docker: BACKEND_MOCKS_URL= docker compose up)." % h["mocks"])
+        # Real mocks serve the same people (mocks/app/data is generated from demo_people.json). The script reaches them from the host.
+        MOCKS["url"] = os.environ.get("MOCKS_HOST_URL", "http://localhost:8001").rstrip("/")
+        urllib.request.urlopen(urllib.request.Request(MOCKS["url"] + "/reset", method="POST"), timeout=10).read()
+        print("Using the REAL mocks at %s (%s)\n" % (MOCKS["url"], h["mocks"].get("url")))
     t = {"admin": login("admin", "admin-demo-123")}
     s, r = call("POST", "/admin/demo/reset", {"include_rules": True}, t["admin"])
     assert s == 200, "reset failed: %s %s" % (s, r)
@@ -192,6 +208,8 @@ def main():
             results.append((n, title, False, str(e)))
             print("   => FAIL: %s\n" % e)
     call("POST", "/admin/demo/chaos", {"identity_down": False, "ledger_down": False, "payments_down": False}, t["admin"])
+    if MOCKS["url"]:
+        outage(False)
     print("SUMMARY")
     for n, title, ok, outcome in results:
         print("  %d. %-46s %s  %s" % (n, title, "PASS" if ok else "FAIL", outcome))

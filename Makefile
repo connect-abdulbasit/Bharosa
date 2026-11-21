@@ -25,7 +25,7 @@ test-integration:  ## tests that need the REAL AI (AI_MODE=real); they skip unti
 demo-reset:  ## restore the known demo state (add ARGS=--rules to also restore rule v1)
 	cd backend && PYTHONPATH=..:../ai ../$(PY) -m app.demo reset $(ARGS)
 
-demo-scenarios:  ## run the 6 demo scenarios over HTTP against a running backend (BASE=http://localhost:8000)
+demo-scenarios:  ## run the 7 demo scenarios over HTTP (fake or real mocks) against a running backend (BASE=http://localhost:8000)
 	$(PY) backend/scripts/run_scenarios.py $(BASE)
 
 lint:
