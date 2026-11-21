@@ -18,6 +18,17 @@ services:
     build: { context: ., dockerfile: mocks/Dockerfile }
     ports: ["8001:8001"]
 
+  # notifications + signed webhooks (simulated). The backend calls it only when NOTIFICATIONS_URL / WEBHOOKS_URL are set; it never blocks a claim.
+  services:
+    build: { context: ., dockerfile: services/Dockerfile }
+    environment:
+      MOCKS_URL: http://mocks:8001
+      SERVICES_API_KEY: ${SERVICES_API_KEY:-dev-services-key-not-for-production}
+      WEBHOOKS_ALLOW_LOCAL: ${WEBHOOKS_ALLOW_LOCAL:-0}
+    ports: ["8002:8002"]
+    depends_on:
+      mocks: { condition: service_started }
+
   backend:
     build: { context: ., dockerfile: backend/Dockerfile }
     env_file: [.env.example]
@@ -29,6 +40,10 @@ services:
       # what "this month" means in claim speech. The demo data (ledger, the open duplicate case) is for 2026-10
       AI_DEFAULT_PERIOD: ${AI_DEFAULT_PERIOD:-2026-10}
       PIPELINE_MODE: thread
+      # empty = off. In-app Urdu/English messages on status changes (needs the citizen's notifications consent) and signed webhooks
+      NOTIFICATIONS_URL: ${NOTIFICATIONS_URL-http://services:8002}
+      WEBHOOKS_URL: ${WEBHOOKS_URL-http://services:8002}
+      SERVICES_API_KEY: ${SERVICES_API_KEY:-dev-services-key-not-for-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       UPLOAD_DIR: /data/uploads
       SEED_ON_START: "1"   # idempotent demo data (fake). Set to 0 to disable
@@ -37,6 +52,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       mocks: { condition: service_started }
+      services: { condition: service_started }
 
 volumes:
   postgres-data:
