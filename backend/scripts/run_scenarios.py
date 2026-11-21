@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the 7 demo scenarios over HTTP against a running backend and report each outcome. Stdlib only.
+"""Run the 8 demo scenarios over HTTP against a running backend and report each outcome. Stdlib only.
 
     python backend/scripts/run_scenarios.py [BASE_URL]        (default http://localhost:8000)
 
@@ -200,6 +200,18 @@ def s7(t):
     return "closed: AI auto_handle (confidence %.2f), ledger confirms PKR 12000 paid, no payment, no officer" % d["confidence"]
 
 
+def s8(t):
+    """The LIVE-demo citizen: a clean account with no open claim, so a claim filed in front of judges never hits the duplicate rule."""
+    tok = login("demo-live")
+    c = file_claim(tok)
+    show(c)
+    print("   identity: %s | match: %s" % (steps(c)["identity_lookup"]["detail"], steps(c)["match_person"]["detail"]))
+    flags = (c["decision"].get("trace") or {}).get("flags", [])
+    assert "duplicate_claim" not in flags and c["status"] in ("needs_more_proof", "with_officer")
+    assert all(x["status"] == "done" for x in c["pipeline_steps"]), "the pipeline did not run to the end"
+    return "%s: full pipeline, no duplicate flag, PKR 12000 shortfall for the officer" % c["status"]
+
+
 def main():
     s, h = call("GET", "/health")
     if s != 200:
@@ -220,7 +232,8 @@ def main():
     for n, (title, fn) in enumerate([("Clean approval", s1), ("Misspelled name (ask more)", s2), ("Short payment by a bad agent (officer)", s3),
                                      ("Duplicate claim, same month (officer)", s4), ("Consent withdrawn (blocked and logged)", s5),
                                      ("Identity service down (paused, then resume)", s6),
-                                     ("Auto-handled: payment check, nothing owed", s7)], start=1):
+                                     ("Auto-handled: payment check, nothing owed", s7),
+                                     ("Live demo: fresh citizen, no open claim", s8)], start=1):
         print("SCENARIO %d: %s" % (n, title))
         try:
             outcome = fn(t)

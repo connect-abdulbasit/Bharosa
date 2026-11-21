@@ -30,11 +30,11 @@ def test_seed_adds_the_demo_layer_once(SessionLocal, demo):
         assert db.query(CheckedMessage).count() == 60 and demo_mod.SCAM_CHECKS_TOTAL == 60
         names = {u.username: u.name for u in db.query(User).filter(User.username.like("s_-%"))}
         assert sorted(names) == ["s1-clean", "s2-spelling", "s3-shortpay", "s4-duplicate", "s5-consent", "s6-idown", "s7-autohandle"]
-        assert db.query(Family).count() == 17 and db.query(User).count() == 22
+        assert db.query(Family).count() == 18 and db.query(User).count() == 23
         assert db.get(Case, "case-demo-4").status == "needs_more_proof"
         assert all(u.cnic.startswith("00000") and len(u.cnic) == 13 for u in db.query(User).filter(User.username.like("s_-%")))
         seed.run(db, scenarios=True)  # idempotent: nothing is duplicated
-        assert db.query(CheckedMessage).count() == 60 and db.query(User).count() == 22 and db.query(Family).count() == 17
+        assert db.query(CheckedMessage).count() == 60 and db.query(User).count() == 23 and db.query(Family).count() == 18
 
 
 def test_scenario_1_clean_approval_pays_once(client, demo):
@@ -114,7 +114,7 @@ def test_helper_files_for_a_scenario_citizen(client, demo):
     r = client.post("/claims", json=dict(SAY, on_behalf_of="u-demo-1"), headers=auth(client, "helper"))
     assert r.status_code == 202 and r.json()["status"] == "needs_more_proof"
     fams = client.get("/helper/families", headers=auth(client, "helper")).json()["items"]
-    assert len(fams) == 17 and {"Rukhsana Bibi", "Hameeda Begum"} <= {f["head_name"] for f in fams}
+    assert len(fams) == 18 and {"Rukhsana Bibi", "Hameeda Begum"} <= {f["head_name"] for f in fams}
 
 
 def test_scenario_7_auto_handled_payment_check_closes_with_no_payment(client, demo):
@@ -161,3 +161,20 @@ def test_chaos_panel_is_forwarded_to_the_real_mocks(monkeypatch):
     monkeypatch.setattr(mocks_client.httpx, "post", lambda url, **kw: sent.append((url, kw["json"])) or type("R", (), {"raise_for_status": lambda s: None})())
     mocks_client.push_real_chaos({"identity_down": True, "ledger_down": False, "payments_down": False})
     assert sent == [("http://mocks.test/chaos", {"error_500": True, "missing_record": False})]
+
+
+def test_demo_live_citizen_has_no_open_claim_and_a_clean_pipeline(client, demo):
+    """The live-demo account never hits the duplicate rule and runs all eight steps."""
+    from tests.conftest import auth
+
+    r = client.post("/claims", json={"transcript": "mujhe is mahine ke paisay nahi mile"}, headers=auth(client, "demo-live"))
+    assert r.status_code == 202
+    c = client.get("/claims/%s" % r.json()["claim_id"], headers=auth(client, "demo-live")).json()
+    assert c["status"] == "needs_more_proof" and "duplicate_claim" not in c["decision"]["trace"].get("flags", [])
+    assert all(s["status"] == "done" for s in c["pipeline_steps"])
+    from app.auth.passwords import verify_password
+    from app.db import session_factory
+
+    with session_factory()() as db:
+        u = db.query(User).filter(User.username == "demo-live").one()
+        assert u.name == "Samina Parveen" and verify_password("1234", u.pin_hash)  # fake PIN for helper consent grants

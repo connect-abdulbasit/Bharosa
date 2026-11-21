@@ -37,7 +37,7 @@ def test_demo_people_invariants():
     """The shared demo file must stay safe and consistent: fake CNICs, unique ids, known agents, no clash with the mocks' own 5 people."""
     data = s.DemoPeople(**json.loads((settings.FIXTURES_DIR / "demo_people.json").read_text(encoding="utf-8")))
     people = data.people
-    assert [p.n for p in people] == list(range(1, len(people) + 1)) and len(people) == 7
+    assert [p.n for p in people] == list(range(1, len(people) + 1)) and len(people) == 8
     for field in ("username", "user_id", "cnic", "key"):
         values = [getattr(p, field) for p in people]
         assert len(values) == len(set(values)), field
