@@ -21,13 +21,23 @@ async function loginAs(role) {
   await page.getByRole("button", { name: new RegExp("^" + role, "i") }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
 }
+async function loginForm(user, pw) {
+  await page.goto(FE + "/login"); await page.evaluate(() => { localStorage.clear(); });
+  await page.goto(FE + "/login"); await page.waitForSelector("text=Try a demo user");
+  await page.locator("input:not([type=password])").first().fill(user); await page.locator("input[type=password]").first().fill(pw);
+  await page.getByRole("button", { name: /^Log in/ }).first().click();
+  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
+}
+let lastClaimId = null;
+page.on("response", async (r) => { if (r.request().method() === "POST" && r.url() === API + "/claims" && r.status() === 202) { try { lastClaimId = (await r.json()).claim_id; } catch {} } });
+async function apiLogin(u, p) { return (await (await fetch(API + "/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: u, password: p }) })).json()).access_token; }
 async function hasBanner() { return /PROTOTYPE - simulated data/i.test(await text()); }
 
 await step("01-landing", "Landing page + prototype banner", async () => { await page.goto(FE + "/"); await page.waitForSelector("text=Check"); if (!(await hasBanner())) throw new Error("no banner"); });
 for (const [i, role] of [["02a", "citizen"], ["02b", "helper"], ["02c", "officer"], ["02d", "admin"], ["02e", "auditor"]])
   await step(`${i}-login-${role}`, `Login as ${role}`, async () => { await loginAs(role); if (!(await hasBanner())) throw new Error("no banner"); return page.url().replace(FE, ""); });
 
-await loginAs("citizen");
+await loginForm("demo-live", "citizen-demo-123");
 await step("03-citizen-scam-check", "Citizen scam check", async () => {
   await page.goto(FE + "/citizen/check"); await page.waitForSelector("text=Check it");
   await page.getByRole("button", { name: /^0300-5550199/ }).click();
@@ -37,7 +47,7 @@ await step("03-citizen-scam-check", "Citizen scam check", async () => {
 });
 await step("04-citizen-claim-polling", "Citizen claim: 202 + poll until progress.active=false", async () => {
   await page.goto(FE + "/citizen/claim"); await page.waitForSelector("text=Tell us the problem");
-  const ta = page.locator("textarea"); await ta.first().fill("mujhe is mahine ke paisay nahi mile");
+  const ta = page.locator("textarea"); await ta.first().fill("mera naam Samina Parveen hai. mujhe is mahine ke paisay nahi mile");
   await page.getByRole("button", { name: /Yes/ }).first().click();
   await page.locator("input[type=file]").first().setInputFiles("id.jpg");
   await page.waitForSelector("text=Photo looks clear", { timeout: 20000 });
@@ -49,9 +59,17 @@ await step("04-citizen-claim-polling", "Citizen claim: 202 + poll until progress
   const polls = mine.filter((r) => /GET \/claims\/[^/]+\/progress/.test(r)).length;
   if (!post || !post.endsWith("202")) throw new Error("POST /claims was not 202: " + post);
   if (polls < 1) throw new Error("no progress polling seen");
-  return `${post}; ${polls} progress polls; ` + (await text()).match(/\d+%/)?.[0];
+  const t = await text(); if (/Duplicate claim/i.test(t)) throw new Error("demo-live hit the duplicate rule");
+  return `${post}; ${polls} progress polls; ` + t.match(/\d+%/)?.[0] + "; no duplicate warning";
 });
 await step("05-citizen-status", "Citizen status timeline", async () => { await page.goto(FE + "/citizen/status"); await page.waitForTimeout(2500); const t = await text(); if (!/needs more proof|With an officer|Submitted|with officer/i.test(t)) throw new Error("no status text"); });
+await step("05b-my-messages", "Citizen home shows My messages (in-app notification, Urdu + English)", async () => {
+  await page.goto(FE + "/citizen"); await page.waitForSelector("[data-testid=my-messages]");
+  await page.waitForFunction(() => /was sent to an officer|ID card again|approved|closed/i.test(document.querySelector("[data-testid=my-messages]")?.innerText || ""), null, { timeout: 15000 });
+  const t = await page.locator("[data-testid=my-messages]").innerText();
+  if (!/[\u0600-\u06FF]/.test(t)) throw new Error("no Urdu text in the message");
+  return t.split("\n").filter((l) => /officer|proof|approved/i.test(l))[0];
+});
 await step("06-payment-check", "Did my payment arrive? (payment_check)", async () => {
   await page.goto(FE + "/citizen"); await page.getByRole("button", { name: /Check this month/ }).click();
   await page.waitForSelector("text=Ask again", { timeout: 60000 });
@@ -105,7 +123,7 @@ await step("11-officer-photo-image-url", "Officer sees the ID photo (image_url -
   const ct = await login("s2-spelling", "citizen-demo-123");
   const form = new FormData(); form.append("file", new Blob([fs.readFileSync("id.jpg")], { type: "image/jpeg" }), "id.jpg");
   const doc = await (await fetch(API + "/documents", { method: "POST", headers: { authorization: "Bearer " + ct }, body: form })).json();
-  const cl = await (await fetch(API + "/claims", { method: "POST", headers: { authorization: "Bearer " + ct, "content-type": "application/json" }, body: JSON.stringify({ transcript: "mujhe is mahine ke paisay nahi mile", document_id: doc.document_id }) })).json();
+  const cl = await (await fetch(API + "/claims", { method: "POST", headers: { authorization: "Bearer " + ct, "content-type": "application/json" }, body: JSON.stringify({ transcript: "mera naam Muhammed Aslam hai. mujhe is mahine ke paisay nahi mile", document_id: doc.document_id }) })).json();
   await new Promise((r) => setTimeout(r, 4000));
   const d = await (await fetch(API + "/cases/" + cl.case_id, { headers: { authorization: "Bearer " + ct } })).json();
   if (!d.image_url) throw new Error("case detail has no image_url after an upload + claim");
@@ -129,30 +147,46 @@ await step("13-admin-rule-publish", "Admin rule publish", async () => {
   await page.getByRole("button", { name: /Yes, publish/ }).click({ timeout: 8000 }); await page.waitForTimeout(3000);
   const s = apiRequests.filter((r) => /POST \/rules\/[^/]+\/versions/.test(r)).pop(); if (!s || !/ 20\d$/.test(s)) throw new Error("publish: " + s); return s;
 });
-await step("14-chaos-claim-pauses-resume", "Chaos switch -> claim pauses -> switch off -> Try again (resume)", async () => {
+async function pauseResume(switchRe, mockKey, person, failedStep, shot) {
+  await loginAs("admin");
   await page.goto(FE + "/admin/chaos"); await page.waitForSelector("text=Identity service down");
-  await page.getByRole("switch", { name: /Identity service down/ }).click(); await page.waitForTimeout(2000);
-  await page.screenshot({ path: `${OUT}/14a-chaos-on.png`, fullPage: true });
-  const mocks = await (await fetch("http://localhost:8001/chaos")).json(); if (!mocks.error_500) throw new Error("real mocks chaos not switched: " + JSON.stringify(mocks));
-  await loginAs("helper"); // a fresh citizen claim: helper files for Gulshan (clean person)
-  await page.goto(FE + "/helper"); await page.waitForSelector("a:has-text('Gulshan')"); await page.locator("a", { hasText: "Gulshan" }).first().click(); await page.waitForSelector("text=You are now helping");
-  await page.locator("textarea").first().fill("mera naam Gulshan Bibi hai. mujhe is mahine ke paisay nahi mile").catch(async () => {});
-  await page.getByRole("button", { name: /^Use this|Yes/ }).first().click().catch(() => {});
+  await page.getByRole("switch", { name: switchRe }).click(); await page.waitForTimeout(2000);
+  const summary = await page.locator("[data-testid=chaos-summary]").innerText(); if (!/1 switch ON/.test(summary)) throw new Error("summary does not show the switch: " + summary);
+  await page.screenshot({ path: `${OUT}/${shot}a-chaos-on.png`, fullPage: true });
+  const mocks = await (await fetch("http://localhost:8001/chaos")).json(); if (!mocks[mockKey]) throw new Error("real mocks chaos not switched: " + JSON.stringify(mocks));
+  await loginAs("helper");
+  await page.goto(FE + "/helper"); await page.waitForSelector(`a:has-text('${person}')`); await page.locator("a", { hasText: person }).first().click(); await page.waitForSelector("text=You are now helping");
+  await page.locator("textarea").first().fill(`mera naam ${NAMES[person]} hai. mujhe is mahine ke paisay nahi mile`);
+  await page.getByRole("button", { name: /Yes/ }).first().click();
   await page.getByRole("button", { name: /Send my claim/ }).click();
   await page.waitForSelector("text=How sure we are", { timeout: 60000 });
-  await page.screenshot({ path: `${OUT}/14b-claim-paused.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/${shot}b-claim-paused.png`, fullPage: true });
+  const ht = await apiLogin("helper", "helper-demo-123");
+  const c = await (await fetch(API + "/claims/" + lastClaimId, { headers: { authorization: "Bearer " + ht } })).json();
+  const st = Object.fromEntries(c.pipeline_steps.map((x) => [x.step, x.status]));
+  if (st[failedStep] !== "failed") throw new Error(`expected ${failedStep} failed, got ${JSON.stringify(st)}`);
+  const before = failedStep === "ledger_lookup" ? "identity_lookup" : null; if (before && st[before] !== "done") throw new Error(before + " should still be done: " + JSON.stringify(st));
   if (!(await page.getByRole("button", { name: /Try again/ }).count())) throw new Error("no Try again button on paused claim");
-  await fetch("http://localhost:8001/chaos/reset", { method: "POST" });
-  await page.getByRole("button", { name: /Try again/ }).click(); await page.waitForSelector("text=How sure we are", { timeout: 60000 });
-  await page.waitForTimeout(1500);
+  const at = await apiLogin("admin", "admin-demo-123"); // the same call the panel's "Reset all" makes
+  await fetch(API + "/admin/demo/chaos", { method: "POST", headers: { authorization: "Bearer " + at, "content-type": "application/json" }, body: JSON.stringify({ identity_down: false, ledger_down: false, payments_down: false }) });
+  await page.getByRole("button", { name: /Try again/ }).click(); await page.waitForSelector("text=How sure we are", { timeout: 60000 }); await page.waitForTimeout(1500);
   const r = apiRequests.filter((x) => /POST \/claims\/[^/]+\/resume/.test(x)).pop(); if (!r) throw new Error("resume not called");
   if (await page.getByRole("button", { name: /Try again/ }).count()) throw new Error("still paused after resume");
-  return r + " -> completed";
-});
+  return `paused at ${failedStep} -> ${r} -> completed`;
+}
+const NAMES = { "Gulshan Bibi": "Gulshan Bibi", "Parveen Akhtar": "Parveen Akhtar" };
+await step("14-chaos-identity-pauses-resume", "Chaos: identity down -> claim pauses at identity_lookup -> Try again", () => pauseResume(/Identity service down/, "error_500", "Gulshan Bibi", "identity_lookup", "14"));
+await step("14c-chaos-payment-record-pauses-resume", "Chaos: payment record down -> pauses at ledger_lookup (identity still done) -> Try again", () => pauseResume(/Payment record down/, "ledger_down", "Parveen Akhtar", "ledger_lookup", "14c"));
 await loginAs("admin");
-await step("15-chaos-reset", "Admin chaos off + reset", async () => {
-  await page.goto(FE + "/admin/chaos"); await page.waitForSelector("text=Identity service down"); await page.waitForTimeout(1500);
-  const m = await (await fetch("http://localhost:8001/chaos")).json(); return "mocks chaos now " + JSON.stringify(m);
+await step("15-chaos-reset-all", "Chaos page: switches on, Reset all", async () => {
+  await page.goto(FE + "/admin/chaos"); await page.waitForSelector("text=Identity service down");
+  await page.getByRole("switch", { name: /Payment record down/ }).click(); await page.getByRole("switch", { name: /Payments rail down/ }).click(); await page.waitForTimeout(2000);
+  const on = await page.locator("[data-testid=chaos-summary]").innerText(); if (!/2 switches ON/.test(on)) throw new Error("summary: " + on);
+  await page.screenshot({ path: `${OUT}/15a-two-switches-on.png`, fullPage: true });
+  await page.getByRole("button", { name: /Reset all/ }).click(); await page.waitForFunction(() => /All services normal/.test(document.querySelector("[data-testid=chaos-summary]")?.innerText || ""), null, { timeout: 10000 });
+  const m = await (await fetch("http://localhost:8001/chaos")).json(); if (m.error_500 || m.ledger_down) throw new Error("mocks still broken " + JSON.stringify(m));
+  const t = await text(); if (!/extract_claim/.test(t)) throw new Error("AI function modes not shown on the page");
+  return "2 on -> Reset all -> normal; AI modes listed";
 });
 await loginAs("auditor");
 await step("16-auditor-audit-log", "Auditor audit log (read-only)", async () => {
