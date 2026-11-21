@@ -88,3 +88,15 @@ def test_chaos_reset_and_state():
     reset = client.post("/chaos/reset").json()
     assert reset["error_500"] is False and reset["slow_network_ms"] == 0 and reset["simulated"] is True
     assert client.get("/identity/" + CNIC).status_code == 200
+
+
+def test_ledger_down_breaks_only_the_ledger():
+    """The Chaos Panel's "payment record down": identity, senders and notify keep working, the ledger answers 503."""
+    client.post("/chaos/reset")
+    assert client.post("/chaos", json={"ledger_down": True}).json()["ledger_down"] is True
+    assert client.get("/ledger/0000042101001").status_code == 503
+    assert client.get("/ledger/0000042101001").json()["simulated"] is True
+    assert client.get("/identity/0000042101001").status_code == 200
+    assert client.get("/senders").status_code == 200
+    client.post("/chaos/reset")
+    assert client.get("/ledger/0000042101001").status_code == 200

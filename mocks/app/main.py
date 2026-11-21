@@ -37,6 +37,7 @@ class ChaosUpdate(BaseModel):
     duplicate_payment: Optional[bool] = None
     lookalike_sender: Optional[bool] = None
     slow_network_ms: Optional[int] = None
+    ledger_down: Optional[bool] = None
 
 
 class ComplaintCreate(BaseModel):
@@ -113,6 +114,8 @@ def identity(cnic: str) -> Dict[str, Any]:
 
 @app.get("/ledger/{cnic}", dependencies=[Depends(apply_chaos)])
 def ledger(cnic: str) -> Dict[str, Any]:
+    if chaos.get()["ledger_down"]:
+        raise HTTPException(status_code=503, detail={"error": "ledger_unavailable", "simulated": True})
     if chaos.get()["missing_record"] or cnic not in LEDGER:
         raise HTTPException(status_code=404, detail={"error": "record_not_found"})
     payments = list(LEDGER[cnic])

@@ -8,6 +8,7 @@ DEFAULTS: Dict[str, Any] = {
     "duplicate_payment": False,
     "lookalike_sender": False,
     "slow_network_ms": 0,
+    "ledger_down": False,  # ONLY GET /ledger/{cnic} answers 503 (the identity service keeps working): a claim pauses at ledger_lookup
 }
 
 _state: Dict[str, Any] = dict(DEFAULTS)
