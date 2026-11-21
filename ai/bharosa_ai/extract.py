@@ -202,15 +202,32 @@ def _draft(claim_type: str, name: str, period: str, explicit: bool, amount: Opti
                       confidence=round(min(confidence, CONF_MAX), 2), model_version=version)
 
 
+LLM_UNAVAILABLE_PENALTY = 0.05  # the offline parser alone is a little less sure than parser + LLM check
+LLM_UNAVAILABLE = "llm_unavailable"
+
+
+def _note_llm_unavailable(result: Union[ClaimDraft, ExtractionError]) -> Union[ClaimDraft, ExtractionError]:
+    """No LLM key/model configured: the offline parser's answer stands, honestly marked and a little less confident.
+    (AI_USE_LLM=0 is a deliberate offline choice, not a missing key, so it is left alone.) Adding a key needs only a restart."""
+    if not isinstance(result, ClaimDraft) or not llm.unavailable():
+        return result
+    return result.model_copy(update={"confidence": round(max(0.0, result.confidence - LLM_UNAVAILABLE_PENALTY), 2),
+                                     "reasons": list(result.reasons) + [LLM_UNAVAILABLE]})
+
+
 def extract_claim(transcript: str) -> Union[ClaimDraft, ExtractionError]:
     try:
         offline = _extract(transcript)
     except Exception:  # never let a strange transcript break the claim pipeline
         return _error("unreadable_transcript", "the speech could not be read")
     try:
-        return _assist(transcript, offline) if _wants_help(offline) else offline
+        result = _assist(transcript, offline) if _wants_help(offline) else offline
     except Exception:  # the LLM path is optional: any failure keeps the offline result
-        return offline
+        result = offline
+    try:
+        return _note_llm_unavailable(result)
+    except Exception:
+        return result
 
 
 def _extract(transcript: str) -> Union[ClaimDraft, ExtractionError]:

@@ -3,6 +3,9 @@ import os
 os.environ["AI_MODE"] = "stub"
 
 import bharosa_ai  # noqa: E402
+import pytest  # noqa: E402
+
+STUB_ONLY = pytest.mark.skipif(bharosa_ai.AI_MODE != "stub", reason="asserts the stub's fixed outputs; AI_MODE=real is on")
 from contracts.ai_interface import (  # noqa: E402
     ClaimDraft, Decision, DocumentReading, Evidence, ExtractionError, MatchResult, MessageVerdict)
 from contracts.enums import DecisionAction, MessageLabel  # noqa: E402
@@ -19,6 +22,7 @@ def _claim(conf=0.95):
     return ClaimDraft(claimant_name="Muhammad Aslam", claim_type="missing", confidence=conf, model_version="t")
 
 
+@STUB_ONLY
 def test_mode_is_stub():
     assert bharosa_ai.AI_MODE == "stub"
 
@@ -40,11 +44,13 @@ def test_match_person_no_match_returns_none():
     assert m.match_id is None
 
 
+@STUB_ONLY
 def test_extract_claim_ok_and_error():
     assert isinstance(bharosa_ai.extract_claim("mujhe paisay kam mile hain"), ClaimDraft)
     assert isinstance(bharosa_ai.extract_claim("hi"), ExtractionError)
 
 
+@STUB_ONLY
 def test_read_document():
     r = bharosa_ai.read_document(b"x" * 500)
     assert isinstance(r, DocumentReading) and r.format_ok and r.model_version

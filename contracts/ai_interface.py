@@ -43,6 +43,7 @@ class ClaimDraft(BaseModel):
     details: Optional[str] = None
     confidence: float = Field(..., ge=0, le=1)
     model_version: str
+    reasons: List[str] = Field(default_factory=list)  # notes about HOW it was read, e.g. "llm_unavailable" (offline parser used, lower confidence)
 
 
 class ExtractionError(BaseModel):

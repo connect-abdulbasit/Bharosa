@@ -57,6 +57,12 @@ def status() -> str:
     return "on"
 
 
+def unavailable() -> bool:
+    """True when the LLM is wanted but not configured (no key / model / bad URL). False when it is on, or switched off on purpose
+    with AI_USE_LLM=0. A key added later needs no code change: restart and this turns False."""
+    return _env("AI_USE_LLM") != "0" and status() != "on"
+
+
 def enabled() -> bool:
     return status() == "on"
 

@@ -206,3 +206,32 @@ def test_the_offline_results_are_unchanged_when_the_llm_is_on_but_not_needed(fak
     fake_llm({"claim_type": "short_paid", "name": "Someone Else"})
     t = "Mera naam Rukhsana Bibi hai. Mujhe is mahine ke paisay nahi mile"
     assert extract_claim(t) == _offline(t) and extract_claim(t).model_version == "extract-rules-1.0"
+
+
+# ---- no LLM key: the offline parser still answers, a little less sure, and says so
+def test_llm_unavailable_is_marked_and_lowers_confidence(monkeypatch):
+    from bharosa_ai import extract
+
+    text = "mera naam Rukhsana Bibi hai. mujhe is mahine ke paisay nahi mile"
+    monkeypatch.setenv("AI_USE_LLM", "0")  # deliberate offline (what the test-suite uses): no mark, no penalty
+    plain = extract.extract_claim(text)
+    assert plain.reasons == []
+    monkeypatch.delenv("AI_USE_LLM")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    marked = extract.extract_claim(text)
+    assert marked.claimant_name == plain.claimant_name and marked.claim_type == plain.claim_type
+    assert marked.reasons == ["llm_unavailable"]
+    assert marked.confidence == round(plain.confidence - extract.LLM_UNAVAILABLE_PENALTY, 2)
+
+
+def test_capabilities_say_which_functions_are_fallbacks(monkeypatch):
+    import bharosa_ai
+
+    monkeypatch.setattr(bharosa_ai, "AI_MODE", "real")
+    monkeypatch.delenv("AI_USE_LLM", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    caps = bharosa_ai.capabilities()["functions"]
+    assert caps["extract_claim"]["mode"] == "real_offline_fallback" and "LLM_API_KEY" in caps["extract_claim"]["why"]
+    assert caps["decide"]["mode"] == "real"
+    assert "extract_claim=real_offline_fallback" in bharosa_ai.describe()
