@@ -16,9 +16,9 @@ Read the root `CLAUDE.md` first.
 - Assert behaviour: statuses, audit entries, `simulated: true`, rule version stored.
 
 ## Tasks
-- [ ] TODO(Hadi): implement the five scenarios (pytest + httpx for API; Playwright for key UI flows).
+- [x] The five scenarios + chaos, RBAC and services checks (pytest + httpx). TODO(Hadi): Playwright for key UI flows (only if time allows).
 - [ ] TODO(Hadi): `docs/demo-script.md` rehearsal, seed/reset script for demo data.
 - [ ] TODO(Hadi): wire into CI once the stack is stable.
 
 ## Run / test
-`make dev` (mocks + backend) in one terminal, then run e2e from this folder once tests exist.
+See `e2e/README.md` (Run). Needs the backend running with `DEMO_MODE=1` against the real mocks.

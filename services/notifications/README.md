@@ -1,3 +1,3 @@
 # Notifications
 
-TODO(Hadi): consent-aware (scope `notifications`) SMS notifications via the mock `POST /notify`; Urdu + English templates; retry; audit entries. All simulated.
+Consent-aware (default deny) Urdu/English notifications via the mock `POST /notify`, with bounded retry. Code: `service.py`. Served by `services/main.py`.

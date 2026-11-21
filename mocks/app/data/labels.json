@@ -1,0 +1,485 @@
+{
+  "expected_monthly_pkr": 12000,
+  "bad_agents": [
+    "agent-044",
+    "agent-058",
+    "agent-099"
+  ],
+  "name_variants": [
+    {
+      "cnic": "0000042101011",
+      "canonical": "Muhammad Rafiq",
+      "variants": [
+        "Mohammed Rafiq",
+        "Mohd Rafiq",
+        "M. Rafiq"
+      ]
+    },
+    {
+      "cnic": "0000042101015",
+      "canonical": "Saeed Shah",
+      "variants": [
+        "  Saeed  Shah "
+      ]
+    },
+    {
+      "cnic": "0000042101017",
+      "canonical": "Muhammad Jamil",
+      "variants": [
+        "Mohammad Jamil",
+        "Muhammed Jamil",
+        "M. Jamil"
+      ]
+    },
+    {
+      "cnic": "0000042101023",
+      "canonical": "Muhammad Imran",
+      "variants": [
+        "Muhammed Imran",
+        "Mohd Imran",
+        "M. Imran",
+        "عمران Ahmed"
+      ]
+    },
+    {
+      "cnic": "0000042101028",
+      "canonical": "Razia Shah",
+      "variants": [
+        "  Razia  Shah "
+      ]
+    },
+    {
+      "cnic": "0000042101029",
+      "canonical": "Muhammad Habib",
+      "variants": [
+        "Muhammed Habib",
+        "Mohammad Habib",
+        "M. Habib"
+      ]
+    },
+    {
+      "cnic": "0000042101035",
+      "canonical": "Muhammad Waseem",
+      "variants": [
+        "Mohammad Waseem",
+        "Mohd Waseem",
+        "M. Waseem"
+      ]
+    },
+    {
+      "cnic": "0000042101041",
+      "canonical": "Muhammad Yaqoob",
+      "variants": [
+        "Mohammed Yaqoob",
+        "Mohd Yaqoob",
+        "M. Yaqoob"
+      ]
+    },
+    {
+      "cnic": "0000042101041",
+      "canonical": "Muhammad Yaqoob",
+      "variants": [
+        "  Muhammad  Yaqoob "
+      ]
+    },
+    {
+      "cnic": "0000042101047",
+      "canonical": "Muhammad Shahid",
+      "variants": [
+        "Mohd Shahid",
+        "Mohammed Shahid",
+        "M. Shahid",
+        "شاہد Malik"
+      ]
+    },
+    {
+      "cnic": "0000042101053",
+      "canonical": "Muhammad Asif",
+      "variants": [
+        "Mohammad Asif",
+        "Muhammed Asif",
+        "M. Asif"
+      ]
+    },
+    {
+      "cnic": "0000042101054",
+      "canonical": "Khadija Ansari",
+      "variants": [
+        "  Khadija  Ansari "
+      ]
+    },
+    {
+      "cnic": "0000042101059",
+      "canonical": "Muhammad Jamil",
+      "variants": [
+        "Mohd Jamil",
+        "Muhammed Jamil",
+        "M. Jamil"
+      ]
+    },
+    {
+      "cnic": "0000042101065",
+      "canonical": "Muhammad Irfan",
+      "variants": [
+        "Mohammad Irfan",
+        "Mohammed Irfan",
+        "M. Irfan"
+      ]
+    },
+    {
+      "cnic": "0000042101067",
+      "canonical": "Habib Rind",
+      "variants": [
+        "  Habib  Rind "
+      ]
+    },
+    {
+      "cnic": "0000042101071",
+      "canonical": "Muhammad Nadeem",
+      "variants": [
+        "Mohammed Nadeem",
+        "Muhammed Nadeem",
+        "M. Nadeem"
+      ]
+    },
+    {
+      "cnic": "0000042101077",
+      "canonical": "Muhammad Imran",
+      "variants": [
+        "Mohammad Imran",
+        "Muhammed Imran",
+        "M. Imran",
+        "عمران Ali"
+      ]
+    },
+    {
+      "cnic": "0000042101080",
+      "canonical": "Hajra Ali",
+      "variants": [
+        "  Hajra  Ali "
+      ]
+    },
+    {
+      "cnic": "0000042101083",
+      "canonical": "Muhammad Arshad",
+      "variants": [
+        "Mohd Arshad",
+        "Mohammed Arshad",
+        "M. Arshad"
+      ]
+    }
+  ],
+  "missing_fields": [
+    {
+      "cnic": "0000042101013",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101016",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101020",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101027",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101027",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101034",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101038",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101041",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101048",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101049",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101055",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101060",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101062",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101069",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101071",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101076",
+      "field": "father_name"
+    },
+    {
+      "cnic": "0000042101082",
+      "field": "date_of_birth"
+    },
+    {
+      "cnic": "0000042101083",
+      "field": "father_name"
+    }
+  ],
+  "duplicate_identities": [
+    {
+      "cnic": "0000042101090",
+      "same_as": "0000042101010"
+    },
+    {
+      "cnic": "0000042101091",
+      "same_as": "0000042101019"
+    },
+    {
+      "cnic": "0000042101092",
+      "same_as": "0000042101028"
+    },
+    {
+      "cnic": "0000042101093",
+      "same_as": "0000042101036"
+    },
+    {
+      "cnic": "0000042101094",
+      "same_as": "0000042101045"
+    },
+    {
+      "cnic": "0000042101095",
+      "same_as": "0000042101054"
+    }
+  ],
+  "wrong_records": [
+    {
+      "cnic": "0000042101011",
+      "field": "date_of_birth",
+      "record_value": "1972-01-20",
+      "true_value": "1965-01-20"
+    },
+    {
+      "cnic": "0000042101024",
+      "field": "date_of_birth",
+      "record_value": "1989-08-26",
+      "true_value": "1982-08-26"
+    },
+    {
+      "cnic": "0000042101039",
+      "field": "date_of_birth",
+      "record_value": "2005-11-07",
+      "true_value": "1998-11-07"
+    },
+    {
+      "cnic": "0000042101052",
+      "field": "date_of_birth",
+      "record_value": "1963-11-18",
+      "true_value": "1956-11-18"
+    }
+  ],
+  "short_payments": [
+    {
+      "cnic": "0000042101001",
+      "payment_id": "pay-1001",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-017"
+    },
+    {
+      "cnic": "0000042101012",
+      "payment_id": "pay-2002",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-044"
+    },
+    {
+      "cnic": "0000042101024",
+      "payment_id": "pay-2014",
+      "expected_pkr": 12000,
+      "paid_pkr": 10000,
+      "agent_id": "agent-099"
+    },
+    {
+      "cnic": "0000042101030",
+      "payment_id": "pay-2020",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-044"
+    },
+    {
+      "cnic": "0000042101036",
+      "payment_id": "pay-2026",
+      "expected_pkr": 12000,
+      "paid_pkr": 9000,
+      "agent_id": "agent-058"
+    },
+    {
+      "cnic": "0000042101042",
+      "payment_id": "pay-2032",
+      "expected_pkr": 12000,
+      "paid_pkr": 10000,
+      "agent_id": "agent-099"
+    },
+    {
+      "cnic": "0000042101048",
+      "payment_id": "pay-2038",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-044"
+    },
+    {
+      "cnic": "0000042101054",
+      "payment_id": "pay-2044",
+      "expected_pkr": 12000,
+      "paid_pkr": 9000,
+      "agent_id": "agent-058"
+    },
+    {
+      "cnic": "0000042101066",
+      "payment_id": "pay-2056",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-044"
+    },
+    {
+      "cnic": "0000042101072",
+      "payment_id": "pay-2062",
+      "expected_pkr": 12000,
+      "paid_pkr": 9000,
+      "agent_id": "agent-058"
+    },
+    {
+      "cnic": "0000042101078",
+      "payment_id": "pay-2068",
+      "expected_pkr": 12000,
+      "paid_pkr": 10000,
+      "agent_id": "agent-099"
+    },
+    {
+      "cnic": "0000042101103",
+      "payment_id": "pay-9003",
+      "expected_pkr": 12000,
+      "paid_pkr": 8000,
+      "agent_id": "agent-099"
+    }
+  ],
+  "duplicate_payments": [
+    {
+      "cnic": "0000042101014",
+      "payment_ids": [
+        "pay-2004",
+        "pay-2004-b"
+      ]
+    },
+    {
+      "cnic": "0000042101029",
+      "payment_ids": [
+        "pay-2019",
+        "pay-2019-b"
+      ]
+    },
+    {
+      "cnic": "0000042101044",
+      "payment_ids": [
+        "pay-2034",
+        "pay-2034-b"
+      ]
+    },
+    {
+      "cnic": "0000042101059",
+      "payment_ids": [
+        "pay-2049",
+        "pay-2049-b"
+      ]
+    }
+  ],
+  "no_payment": [
+    "0000042101003",
+    "0000042101018",
+    "0000042101032",
+    "0000042101046",
+    "0000042101060",
+    "0000042101074",
+    "0000042101101",
+    "0000042101102",
+    "0000042101104",
+    "0000042101105",
+    "0000042101106"
+  ],
+  "demo_people": [
+    {
+      "cnic": "0000042101101",
+      "username": "s1-clean",
+      "key": "clean-approval"
+    },
+    {
+      "cnic": "0000042101102",
+      "username": "s2-spelling",
+      "key": "misspelled-name"
+    },
+    {
+      "cnic": "0000042101103",
+      "username": "s3-shortpay",
+      "key": "short-payment-bad-agent"
+    },
+    {
+      "cnic": "0000042101104",
+      "username": "s4-duplicate",
+      "key": "duplicate-claim"
+    },
+    {
+      "cnic": "0000042101105",
+      "username": "s5-consent",
+      "key": "consent-withdrawn"
+    },
+    {
+      "cnic": "0000042101106",
+      "username": "s6-idown",
+      "key": "identity-service-down"
+    },
+    {
+      "cnic": "0000042101107",
+      "username": "s7-autohandle",
+      "key": "auto-handle"
+    }
+  ],
+  "official_senders": [
+    "9090",
+    "9090-SAHARA",
+    "SAHARA-GOV",
+    "9091",
+    "SAHARA-HELP"
+  ],
+  "scam_senders": [
+    "0300-0000000",
+    "9090-SAHARA-PAY",
+    "909O",
+    "9O90",
+    "9O9O",
+    "GOV-RELIEF",
+    "RELIEF-PAY",
+    "SAHARA-GOV.",
+    "SAHARA-INFO",
+    "SAHARA-lNFO",
+    "SAHRA-GOV"
+  ],
+  "bad_agent_note": "Short payments cluster on 3 agents: this is the pattern the system should surface."
+}

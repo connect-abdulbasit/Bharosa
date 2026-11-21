@@ -1,1 +1,18 @@
-{"official": ["9090", "9090-SAHARA", "SAHARA-GOV", "9091", "SAHARA-HELP"], "lookalikes": ["9O9O", "SAHARA-lNFO"]}
+{
+  "official": [
+    "9090",
+    "9090-SAHARA",
+    "SAHARA-GOV",
+    "9091",
+    "SAHARA-HELP"
+  ],
+  "lookalikes": [
+    "9090-SAHARA-PAY",
+    "909O",
+    "9O90",
+    "9O9O",
+    "SAHARA-GOV.",
+    "SAHARA-lNFO",
+    "SAHRA-GOV"
+  ]
+}
