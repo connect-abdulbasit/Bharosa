@@ -140,7 +140,8 @@ def test_retry_after_header_sets_the_pause(monkeypatch, on):
     err = urllib.error.HTTPError("http://x", 429, "Too Many Requests", {"Retry-After": "3"}, None)
     calls = script(monkeypatch, err, reply('{"ok": 1}'))
     assert llm.chat_json("s", "u") == {"ok": 1} and len(calls) == 2 and slept == [3.0]
-    llm.reset_stats(); slept.clear()
+    llm.reset_stats()
+    slept.clear()
     err = urllib.error.HTTPError("http://x", 429, "Too Many Requests", {"Retry-After": "120"}, None)
     script(monkeypatch, err, reply('{"ok": 1}'))
     assert llm.chat_json("s", "u") == {"ok": 1} and slept == [llm.MAX_WAIT_SECONDS]  # capped
