@@ -1,7 +1,39 @@
-# Render Blueprint for the Bharosa backend. NOT deployed yet: this is only the config.
+# Render Blueprint for the Bharosa platform: THREE web services (backend, mocks, services). NOT deployed yet: this is only the config.
 # Render: New > Blueprint > select this repo, then set "Blueprint file path" to backend/render.yaml.
-# Build context is the repo root (the image also needs /contracts and /ai).
+# Build context is the repo root for all three (the backend image also needs /contracts and /ai).
+# The frontend runs on Vercel (see DEPLOY.md), the database on Supabase.
+# Free plans sleep after ~15 minutes: open /health of all three just before a demo (DEPLOY.md, "Warm up").
 services:
+  # simulated identity / ledger / payments / complaints / notify, with the Chaos switches
+  - type: web
+    name: bharosa-mocks
+    runtime: docker
+    dockerfilePath: ./mocks/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: CHAOS_TOKEN              # optional: protects POST /chaos. The backend sends it as MOCKS_CHAOS_TOKEN (set the same value there)
+        sync: false
+
+  # simulated notifications (Urdu + English, consent-aware) and signed webhooks
+  - type: web
+    name: bharosa-services
+    runtime: docker
+    dockerfilePath: ./services/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: SERVICES_API_KEY         # shared secret: the backend sends it as X-Service-Key. Use the SAME value in both places
+        generateValue: true
+      - key: MOCKS_URL                # the mocks service (change if you renamed it)
+        value: https://bharosa-mocks.onrender.com
+      - key: WEBHOOKS_ALLOW_LOCAL     # 0 = webhook targets must be public https hosts (SSRF guard)
+        value: "0"
+
   - type: web
     name: bharosa-backend
     runtime: docker
@@ -17,22 +49,36 @@ services:
         generateValue: true
       - key: CORS_ORIGINS             # the deployed frontend origin(s), comma separated, e.g. https://bharosa.vercel.app
         sync: false
-      - key: MOCKS_URL                # leave empty to use the built-in fake mocks, or the URL of the deployed mocks service
+      - key: MOCKS_URL                # the deployed mocks service (change if you renamed it). Empty = the built-in fake mocks
+        value: https://bharosa-mocks.onrender.com
+      - key: NOTIFICATIONS_URL        # the deployed services app; empty = no in-app messages
+        value: https://bharosa-services.onrender.com
+      - key: WEBHOOKS_URL
+        value: https://bharosa-services.onrender.com
+      - key: SERVICES_API_KEY         # copy the value Render generated for bharosa-services
         sync: false
-      - key: AI_MODE
-        value: stub
+      - key: MOCKS_CHAOS_TOKEN        # only if you set CHAOS_TOKEN on bharosa-mocks: the same value (Chaos Panel -> mocks)
+        sync: false
+      - key: AI_DEFAULT_PERIOD        # the demo data is for 2026-10
+        value: "2026-10"
+      - key: AI_MODE                  # stub = fixed demo outputs. real = the offline AI (works WITHOUT an LLM key; see DEPLOY.md)
+        value: real
       - key: TRUST_PROXY              # behind Render's proxy: rate limits use the real client IP
         value: "1"
       - key: ENVIRONMENT
         value: production
       - key: SEED_ON_START            # FAKE demo users/cases for the judges; set to 0 once real data exists
         value: "1"
-      - key: DEMO_MODE                # 1 = admin demo reset + 6 scenarios + fake-mocks outage switches (fine for a judged prototype)
+      - key: DEMO_MODE                # 1 = admin demo reset + 8 scenarios + outage switches (fine for a judged prototype)
         value: "1"
       # LOGIN_RATE_LIMIT is left unset on purpose: 30/minute while DEMO_MODE=1, 5/minute once you set DEMO_MODE=0 (or set it yourself)
       - key: SENTRY_DSN               # optional
         sync: false
-      - key: LLM_API_KEY              # only for AI_MODE=real
+      - key: LLM_API_KEY              # OPTIONAL. Add it here later + the two lines below, then redeploy: no code change (DEPLOY.md)
+        sync: false
+      - key: LLM_MODEL                # the provider's model id (required together with the key)
+        sync: false
+      - key: LLM_BASE_URL             # optional, https only; default https://api.x.ai/v1
         sync: false
       - key: UPLOAD_DIR               # ID photos. Free plans have no persistent disk: files are lost on redeploy (see DEPLOY.md)
         value: /data/uploads

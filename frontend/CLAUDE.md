@@ -63,6 +63,9 @@ Also: `/citizen/status` and `/helper/[familyId]` use the first case from `GET /c
 - [x] Voice-note recorder where `SpeechRecognition` is missing (`VoiceNote.tsx`); the platform only accepts text, so typing stays required.
 - [ ] TODO(Hani): Vercel deploy; URL in README.
 
+## Deploy (Vercel)
+Root directory `frontend`, env `NEXT_PUBLIC_API_MODE=live` and `NEXT_PUBLIC_API_URL=<backend URL>` (baked at build time: redeploy after changing them), then add the Vercel origin to the backend's `CORS_ORIGINS`. Full checklist: ../DEPLOY.md.
+
 ## Run / test
 ```
 cd frontend

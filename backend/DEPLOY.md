@@ -1,4 +1,6 @@
-# Deploying the backend (config only: nothing here has been deployed)
+# Deploying the backend: technical notes
+
+**Start with the step-by-step checklist: [../DEPLOY.md](../DEPLOY.md)** (Supabase + Render + Vercel, 30 minutes). Nothing has been deployed yet.
 
 Target: **Render or Railway** for the API, **Supabase** for Postgres, **Vercel** for the frontend.
 
@@ -10,7 +12,7 @@ Target: **Render or Railway** for the API, **Supabase** for Postgres, **Vercel**
 
 ## 2. API on Render
 - `backend/render.yaml` is a Blueprint (Docker, build context = repo root, health check `/health`).
-- Set the `sync: false` variables in the dashboard: `DATABASE_URL`, `CORS_ORIGINS` (your Vercel origin), optionally `MOCKS_URL`, `SENTRY_DSN`, demo passwords.
+- Set the `sync: false` variables in the dashboard: `DATABASE_URL`, `CORS_ORIGINS` (your Vercel origin), `SERVICES_API_KEY`, the demo passwords, optionally `SENTRY_DSN`. `MOCKS_URL`, `NOTIFICATIONS_URL` and `WEBHOOKS_URL` point at the other two Render services of the same blueprint.
 - Start command (in the image): `sh start.sh` = `alembic upgrade head` -> optional seed (`SEED_ON_START=1`) -> `uvicorn` on `$PORT` with `--proxy-headers`.
 - Set `TRUST_PROXY=1` so rate limits see the real client IP.
 
