@@ -40,7 +40,7 @@ def _tesseract_lang(pytesseract: Any) -> str:
         have = set(pytesseract.get_languages(config=""))
     except Exception:
         return "eng"
-    return "+".join(l for l in ("eng", "urd") if l in have) or "eng"
+    return "+".join(code for code in ("eng", "urd") if code in have) or "eng"
 
 
 def _load_tesseract() -> Optional[Callable[[Any], List[Tuple[str, float]]]]:

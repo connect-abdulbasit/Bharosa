@@ -81,7 +81,7 @@ def test_the_tesseract_runner_groups_words_into_lines(monkeypatch):
     data = {"text": ["Name", "", "Muhammad", "Aslam", "noise"], "conf": ["96", "-1", "90", "80", "-1"],
             "block_num": [1, 1, 1, 1, 1], "par_num": [1, 1, 1, 1, 1], "line_num": [1, 1, 2, 2, 3]}
     fake = types.SimpleNamespace(Output=types.SimpleNamespace(DICT="dict"), get_tesseract_version=lambda: "5.3",
-                                 image_to_data=lambda image, output_type, config: data)
+                                 image_to_data=lambda image, output_type, config, lang=None: data)
     monkeypatch.setitem(sys.modules, "pytesseract", fake)
     run = ocr._load_tesseract()
     assert run(IMG) == [("Name", 0.96), ("Muhammad Aslam", pytest.approx(0.85))]
