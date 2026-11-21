@@ -8,3 +8,12 @@ def _no_llm_by_default(monkeypatch):
     monkeypatch.setenv("AI_USE_LLM", "0")
     monkeypatch.setenv("AI_USE_ML", "0")  # the rule tests test the rules; the hybrid has its own tests (test_classify_ml.py)
     monkeypatch.setenv("AI_USE_OCR", "0")  # the quality-gate tests must not depend on an OCR engine being installed (test_ocr.py, test_document_ocr.py)
+
+
+@pytest.fixture(autouse=True)
+def _llm_isolation(monkeypatch):
+    """No real pauses, and a failed LLM call in one test must not start a cool-down that silences the next test."""
+    from bharosa_ai import llm
+
+    monkeypatch.setattr(llm, "_sleep", lambda seconds: None)
+    llm.reset_stats()

@@ -1,6 +1,6 @@
 """extract_claim: an Urdu / Roman Urdu / English voice transcript -> ClaimDraft, or ExtractionError.
 
-An offline rule parser always runs first. An optional LLM (llm.py, Grok) is asked ONLY when the parser could not finish
+An offline rule parser always runs first. An optional LLM (llm.py, any OpenAI-compatible API such as Gemini or Grok) is asked ONLY when the parser could not finish
 (no name heard, or no claim found); with no key, LLM_MODEL unset, AI_USE_LLM=0 or any failure the offline result is returned
 unchanged. The LLM can only FIND what was said: the name it reports must be spoken in the transcript, the speech must
 mention money or a payment, and month, amount and CNIC still come from the offline parser with the same range checks.
@@ -28,7 +28,7 @@ from bharosa_ai import llm
 from contracts.ai_interface import ClaimDraft, ExtractionError
 
 MODEL_VERSION = "extract-rules-1.0"
-LLM_VERSION = "extract-grok-1.0"  # results that the LLM helped to produce say so in the audit log
+LLM_VERSION = "extract-llm-1.0"  # results that an LLM helped to produce say so in the audit log (provider-neutral: any OpenAI-compatible API)
 _ASSUMED = "Month not stated"
 _HELPABLE = ("name_not_heard", "no_claim_found")
 _SYSTEM = ('You read a short spoken transcript (Urdu, Roman Urdu or English) in which a person reports a missing or short relief '
@@ -56,7 +56,8 @@ _NOT_NAME = {"mahine", "mahina", "maheena", "month", "paisa", "paisay", "paise",
              "rupaye", "payment", "stipend", "wazifa", "money", "nahi", "nahin", "mile", "mila", "mili", "kam", "less", "account", "aayi",
              "aaye", "abhi", "tak", "mujhe", "meri", "mera", "mere", "bahut", "bohat", "paid", "received", "receive", "not", "never",
              "مہینے", "ماہ", "پیسے", "رقم", "وظیفہ", "ادائیگی", "روپے", "نہیں", "ملے", "کم", "مجھے", "میری", "میرا"}
-_MONEY = re.compile(r"paisa|paisay|paise|pese|raqam|rakam|rupay|rupee|rupaye|payment|stipend|wazifa|money|\bpaid\b|پیسے|پیسہ|رقم|وظیفہ|ادائیگی|روپے")
+_MONEY = re.compile(r"paisa|paisay|paise|pese|raqam|rakam|rupay|rupee|rupaye|payment|stipend|wazifa|money|\bpaid\b|imdad|imdaad|qist|kist|"
+                    r"instal+ment|relief|\baid\b|benefit|پیسے|پیسہ|رقم|وظیفہ|ادائیگی|روپے|امداد|قسط|ماہانہ|ماہانا")
 MAX_TEXT = 2000
 MIN_LETTERS = 10
 CONF_BASE, CONF_PERIOD, CONF_AMOUNT, CONF_CNIC, CONF_MAX, NOISE_PENALTY = 0.60, 0.10, 0.05, 0.05, 0.80, 0.10

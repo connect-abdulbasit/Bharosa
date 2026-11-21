@@ -32,12 +32,18 @@ def http_error(code):
     return urllib.error.HTTPError("https://api.x.ai/v1/chat/completions", code, "err", {}, None)
 
 
+slept = []  # the pauses the client asked for
+
+
 @pytest.fixture
 def on(monkeypatch):
     monkeypatch.setenv("AI_USE_LLM", "1")
     monkeypatch.setenv("LLM_API_KEY", FAKE_KEY)
     monkeypatch.setenv("LLM_MODEL", "test-model")
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.setattr(llm, "_sleep", lambda seconds: slept.append(seconds))  # never really wait
+    slept.clear()
+    llm.reset_stats()
 
 
 def script(monkeypatch, *outcomes):
@@ -106,18 +112,38 @@ def test_odd_response_shapes_give_none(monkeypatch, on, body):
     assert llm.chat_json("s", "u") is None
 
 
-def test_server_error_is_retried_once(monkeypatch, on):
+def test_server_error_is_retried_after_a_pause(monkeypatch, on):
     calls = script(monkeypatch, http_error(500), reply('{"ok": true}'))
-    assert llm.chat_json("s", "u") == {"ok": True} and len(calls) == 2
+    assert llm.chat_json("s", "u") == {"ok": True} and len(calls) == 2 and slept == [1.0]
 
 
-def test_two_server_errors_or_timeouts_give_none(monkeypatch, on):
+def test_persistent_server_errors_give_none_after_backoff_and_start_a_cooldown(monkeypatch, on):
     calls = script(monkeypatch, http_error(503))
-    assert llm.chat_json("s", "u") is None and len(calls) == 2
+    assert llm.chat_json("s", "u") is None and len(calls) == 3 and slept == [1.0, 2.5]
+    assert llm.cooling_down()
+    more = script(monkeypatch, reply('{"ok": 1}'))
+    assert llm.chat_json("s", "u") is None and more == []  # skipped during the cooldown: the offline parser answers at once
+    monkeypatch.setattr(llm, "_now", lambda: llm._COOLDOWN["until"] + 1)  # time passes
+    again = script(monkeypatch, reply('{"ok": 1}'))
+    assert llm.chat_json("s", "u") == {"ok": 1} and len(again) == 1
+
+
+def test_timeouts_and_network_errors_are_retried_only_once(monkeypatch, on):
     calls = script(monkeypatch, TimeoutError("slow"))
     assert llm.chat_json("s", "u") is None and len(calls) == 2
+    llm.reset_stats()
     calls = script(monkeypatch, urllib.error.URLError("no network"))
     assert llm.chat_json("s", "u") is None and len(calls) == 2
+
+
+def test_retry_after_header_sets_the_pause(monkeypatch, on):
+    err = urllib.error.HTTPError("http://x", 429, "Too Many Requests", {"Retry-After": "3"}, None)
+    calls = script(monkeypatch, err, reply('{"ok": 1}'))
+    assert llm.chat_json("s", "u") == {"ok": 1} and len(calls) == 2 and slept == [3.0]
+    llm.reset_stats(); slept.clear()
+    err = urllib.error.HTTPError("http://x", 429, "Too Many Requests", {"Retry-After": "120"}, None)
+    script(monkeypatch, err, reply('{"ok": 1}'))
+    assert llm.chat_json("s", "u") == {"ok": 1} and slept == [llm.MAX_WAIT_SECONDS]  # capped
 
 
 @pytest.mark.parametrize("code", [400, 401, 403, 404])
@@ -128,7 +154,7 @@ def test_client_errors_are_not_retried(monkeypatch, on, code):
 
 def test_rate_limit_is_retried(monkeypatch, on):
     calls = script(monkeypatch, http_error(429), reply('{"ok": 1}'))
-    assert llm.chat_json("s", "u") == {"ok": 1} and len(calls) == 2
+    assert llm.chat_json("s", "u") == {"ok": 1} and len(calls) == 2 and slept == [1.0]
 
 
 @pytest.mark.parametrize("name,value", [("AI_USE_LLM", "0"), ("LLM_API_KEY", ""), ("LLM_MODEL", ""), ("LLM_BASE_URL", "http://x.example")])

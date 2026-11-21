@@ -56,7 +56,7 @@ def test_llm_finds_a_name_that_was_said_in_an_unusual_way(fake_llm):
     sent = fake_llm({"claim_type": "missing", "name": "Rukhsana Bibi"})
     d = extract_claim(NAME_NOT_SAID_AS_NAME)
     assert isinstance(d, ClaimDraft) and d.claimant_name == "Rukhsana Bibi" and d.claim_type == "missing"
-    assert d.model_version == "extract-grok-1.0" and len(d.model_version) <= 40
+    assert d.model_version == "extract-llm-1.0" and len(d.model_version) <= 40
     assert d.period == "2026-11" and d.confidence == pytest.approx(0.70) and len(sent) == 1  # month still read by the offline parser
 
 
@@ -64,7 +64,7 @@ def test_llm_finds_a_claim_in_unusual_wording(fake_llm):
     fake_llm({"claim_type": "missing", "name": "Gul Bano"})
     d = extract_claim(UNUSUAL_WORDING)
     assert isinstance(d, ClaimDraft) and d.claimant_name == "Gul Bano" and d.claim_type == "missing"
-    assert "assumed 2026-11" in d.details and d.confidence == pytest.approx(0.60) and d.model_version == "extract-grok-1.0"
+    assert "assumed 2026-11" in d.details and d.confidence == pytest.approx(0.60) and d.model_version == "extract-llm-1.0"
 
 
 def test_amount_and_cnic_still_come_from_the_offline_parser(fake_llm):
@@ -99,7 +99,7 @@ def test_a_claim_is_never_created_from_speech_that_does_not_mention_money(fake_l
 def test_the_two_readers_disagreeing_is_an_error_not_a_pick(fake_llm):
     fake_llm({"claim_type": "short_paid", "name": "Rukhsana Bibi"})   # the offline parser heard "missing"
     e = extract_claim(NAME_NOT_SAID_AS_NAME)
-    assert isinstance(e, ExtractionError) and e.error == "conflicting_claim" and e.model_version == "extract-grok-1.0"
+    assert isinstance(e, ExtractionError) and e.error == "conflicting_claim" and e.model_version == "extract-llm-1.0"
 
 
 def test_prompt_injection_cannot_set_an_amount(fake_llm):
@@ -135,7 +135,7 @@ def _post_replies(monkeypatch, *contents):
 def test_an_invalid_reply_is_retried_once_and_a_valid_second_reply_is_used(monkeypatch):
     bodies = _post_replies(monkeypatch, '{"claim_type": "maybe", "name": 5}', '{"claim_type": "missing", "name": "Rukhsana Bibi"}')
     d = extract_claim(NAME_NOT_SAID_AS_NAME)
-    assert isinstance(d, ClaimDraft) and d.claimant_name == "Rukhsana Bibi" and d.model_version == "extract-grok-1.0"
+    assert isinstance(d, ClaimDraft) and d.claimant_name == "Rukhsana Bibi" and d.model_version == "extract-llm-1.0"
     assert len(bodies) == 2
     roles = [m["role"] for m in bodies[1]["messages"]]
     assert roles == ["system", "user", "assistant", "user"] and "invalid" in bodies[1]["messages"][-1]["content"]  # shown its bad answer + a hint
@@ -235,3 +235,22 @@ def test_capabilities_say_which_functions_are_fallbacks(monkeypatch):
     assert caps["extract_claim"]["mode"] == "real_offline_fallback" and "LLM_API_KEY" in caps["extract_claim"]["why"]
     assert caps["decide"]["mode"] == "real"
     assert "extract_claim=real_offline_fallback" in bharosa_ai.describe()
+
+
+# ---- Urdu script and "aid / instalment" wording: the money-word gate must let the LLM be asked
+URDU_AID = "میں محمد اسلم ہوں اور میری ماہانہ امداد نہیں ملی"            # "I am Muhammad Aslam and my monthly aid was not received"
+ROMAN_IMDAD = "main Gul Bano hoon aur meri imdad is mahine nahi mili"
+
+
+@pytest.mark.parametrize("text,name", [(URDU_AID, "محمد اسلم"), (ROMAN_IMDAD, "Gul Bano")])
+def test_aid_wording_reaches_the_llm_and_a_spoken_name_is_accepted(fake_llm, text, name):
+    assert extract_claim(text).error == "name_not_heard"           # offline alone cannot find a name after "main ... hoon"
+    sent = fake_llm({"claim_type": "missing", "name": name})
+    d = extract_claim(text)
+    assert len(sent) == 1 and isinstance(d, ClaimDraft) and d.claimant_name == name and d.claim_type == "missing"
+    assert d.model_version == "extract-llm-1.0"
+
+
+def test_speech_without_any_money_word_is_still_never_sent_to_the_llm(fake_llm):
+    sent = fake_llm({"claim_type": "missing", "name": "Gul Bano"})
+    assert isinstance(extract_claim("main Gul Bano hoon aur aaj mausam bahut accha hai"), ExtractionError) and sent == []
