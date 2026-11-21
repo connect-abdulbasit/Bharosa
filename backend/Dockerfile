@@ -2,10 +2,13 @@
 FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONPATH=/app:/app/ai PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 UPLOAD_DIR=/data/uploads
+# OCR for the ID photo (ai/bharosa_ai/ocr.py): the Tesseract binary with the English + Urdu language packs, about 60 MB
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-urd \
+ && rm -rf /var/lib/apt/lists/*
 # dependencies first (cached until pyproject changes), source after
 COPY ai ./ai
 COPY backend/pyproject.toml ./backend/pyproject.toml
-RUN pip install --no-cache-dir ./ai "./backend[monitoring]"
+RUN pip install --no-cache-dir ./ai "./backend[monitoring]" "pytesseract>=0.3"
 COPY contracts ./contracts
 COPY backend ./backend
 RUN sed -i 's/\r$//' /app/backend/start.sh \

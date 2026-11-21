@@ -31,6 +31,18 @@ def _load_rapidocr() -> Optional[Callable[[Any], List[Tuple[str, float]]]]:
     return run
 
 
+def _tesseract_lang(pytesseract: Any) -> str:
+    """English plus Urdu when both packs are installed (the Docker image has both), else English. AI_OCR_LANG overrides."""
+    forced = os.environ.get("AI_OCR_LANG", "").strip()
+    if forced:
+        return forced
+    try:
+        have = set(pytesseract.get_languages(config=""))
+    except Exception:
+        return "eng"
+    return "+".join(l for l in ("eng", "urd") if l in have) or "eng"
+
+
 def _load_tesseract() -> Optional[Callable[[Any], List[Tuple[str, float]]]]:
     try:
         import pytesseract
@@ -40,7 +52,7 @@ def _load_tesseract() -> Optional[Callable[[Any], List[Tuple[str, float]]]]:
         return None
 
     def run(image: Any) -> List[Tuple[str, float]]:
-        data = pytesseract.image_to_data(image.convert("L"), output_type=pytesseract.Output.DICT, config="--psm 6")
+        data = pytesseract.image_to_data(image.convert("L"), output_type=pytesseract.Output.DICT, config="--psm 6", lang=_tesseract_lang(pytesseract))
         lines: Dict[Tuple[int, int, int], List[Tuple[str, float]]] = {}
         for i, word in enumerate(data["text"]):
             if str(word).strip() and float(data["conf"][i]) >= 0:
