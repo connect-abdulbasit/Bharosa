@@ -29,6 +29,7 @@ services:
       # what "this month" means in claim speech. The demo data (ledger, the open duplicate case) is for 2026-10
       AI_DEFAULT_PERIOD: ${AI_DEFAULT_PERIOD:-2026-10}
       PIPELINE_MODE: thread
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       UPLOAD_DIR: /data/uploads
       SEED_ON_START: "1"   # idempotent demo data (fake). Set to 0 to disable
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-not-for-production-0000}
