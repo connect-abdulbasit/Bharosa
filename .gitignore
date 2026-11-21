@@ -1,7 +1,13 @@
-# env / secrets
+# env / secrets: every .env file at any depth is ignored, only the *.example templates are tracked
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+frontend/.env.local
+ai/.env
+backend/.env
 # python
 .venv/
 __pycache__/
