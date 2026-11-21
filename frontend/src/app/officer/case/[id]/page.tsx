@@ -6,10 +6,33 @@ import { PageShell } from "@/components/PageShell";
 import { ReadAloud } from "@/components/ReadAloud";
 import { formatTime } from "@/components/StatusTimeline";
 import { Badge, Button, Card, Field, Meter, Notice, SectionTitle, Skeleton, pretty } from "@/components/ui";
-import { api, errorText } from "@/lib/api";
+import { api, apiImage, errorText } from "@/lib/api";
 import { getSession, useSession } from "@/lib/auth";
 import { statusLook } from "@/lib/status";
 import type { CaseDetail } from "@/lib/types";
+
+/** The ID photo the citizen sent (server-resized copy; same auth as the case). Shown only when the claim has one. */
+function IdPhoto({ path }: { path: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let url: string | null = null;
+    void apiImage(path, getSession()?.token).then((u) => {
+      url = u;
+      setSrc(u);
+    });
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [path]);
+  if (!src) return null;
+  return (
+    <Card className="rise space-y-3">
+      <SectionTitle icon="camera" en="ID card photo" ur="شناختی کارڈ کی تصویر" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="ID card sent by the citizen (simulated)" className="w-full rounded-2xl border border-line" />
+    </Card>
+  );
+}
 
 const OUTCOME: Record<string, { status: CaseDetail["status"]; msg: string }> = {
   approve: { status: "approved", msg: "Approved. If there is a shortfall, the payment was released once (retries cannot pay twice)." },
@@ -103,6 +126,8 @@ function CaseInner() {
                 </details>
               </Card>
             )}
+
+            {c.image_url && <IdPhoto path={c.image_url} />}
 
             {c.pipeline_steps.length > 0 && (
               <Card className="rise space-y-3">

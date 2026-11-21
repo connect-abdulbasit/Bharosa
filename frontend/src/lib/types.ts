@@ -32,6 +32,7 @@ export type CaseDetail = {
   explanation_en: string | null;
   pipeline_steps: { step: string; status: string; detail: string }[];
   rule_version: number | null;
+  image_url?: string | null;
 };
 export type MessageCheck = {
   label: MessageLabel;
