@@ -86,3 +86,18 @@ paths:
             application/json:
               schema:
                 $ref: 'schemas.py#/ChaosState'
+  /payments/disburse:
+    post:
+      summary: POST /payments/disburse (TODO(Hadi): not implemented yet; the backend falls back to POST /complaints on 404)
+      description: >
+        Idempotent. The backend sends the header `Idempotency-Key` (also in the body) = `{case_id}:{decision_id}`.
+        The SAME key must return the SAME payment_ref and must never pay twice (`duplicate: true` on repeats).
+        Must honour chaos switches (timeout, error_500) like the other endpoints. Every response has `simulated: true`.
+      x-request-schema: PaymentDisburseRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/PaymentDisburseResponse'

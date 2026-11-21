@@ -5,10 +5,11 @@
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import ANY_ROLE, require_role
 from app.db import get_db
 from app.models import Case, Claim, Decision, User
@@ -24,7 +25,7 @@ from contracts.enums import ConsentScope, Role
 from contracts.schemas import (AssignRequest, CaseCreate, CaseDetail, CaseListResponse, CloseRequest, EscalateRequest,
                                OfficerDecision)
 
-router = APIRouter(tags=["cases"])
+router = APIRouter(tags=["cases"], route_class=CompactRoute)
 
 OFFICER_ACTIONS = {"approve": "approved", "reject": "rejected", "ask_more": "needs_more_proof", "request_more": "needs_more_proof"}
 
@@ -96,10 +97,14 @@ def escalate(case_id: str, body: EscalateRequest, user: User = Depends(require_r
     return case_detail(db, case)
 
 
-@router.post("/cases/{case_id}/decide", response_model=CaseDetail)
-def decide(case_id: str, body: OfficerDecision, user: User = Depends(require_role(Role.officer)), db: Session = Depends(get_db)):
-    """Officer decision (approve / reject / ask_more) with a REQUIRED reason, stored with decided_by = officer id.
-    Approving a case that needs a payment releases it through the (mock) payments channel and records it."""
+@router.post("/cases/{case_id}/decide", response_model=CaseDetail, summary="Officer decision (reason required)")
+def decide(case_id: str, body: OfficerDecision = Body(..., openapi_examples={
+        "approve": {"summary": "Approve (releases a needed payment once)", "value": {"action": "approve", "reason": "Ledger shows 8000 of 12000"}},
+        "ask_more": {"summary": "Ask for more proof", "value": {"action": "ask_more", "reason": "ID photo is blurry"}}}),
+           user: User = Depends(require_role(Role.officer)), db: Session = Depends(get_db)):
+    """Officer decision (approve / reject / ask_more) with a REQUIRED reason, stored with `decided_by` = officer id.
+    Approving a case that needs a payment pays through the (mock) payments rail **exactly once**: the idempotency key
+    `case_id:decision_id` is saved on the decision BEFORE the call, so a retry (or a second approval) reuses it."""
     if body.action not in OFFICER_ACTIONS:
         raise HTTPException(status_code=422, detail="action must be one of approve, reject, ask_more")
     reason = (body.reason or body.note or "").strip()
@@ -107,36 +112,61 @@ def decide(case_id: str, body: OfficerDecision, user: User = Depends(require_rol
         raise HTTPException(status_code=422, detail="A reason is required for every officer decision")
     action = "ask_more" if body.action == "request_more" else body.action
     new_status = OFFICER_ACTIONS[action]
-    case = get_visible_case(db, user, case_id)
+    get_visible_case(db, user, case_id)
+    case = db.execute(select(Case).where(Case.id == case_id).with_for_update()).scalar_one()  # serialises concurrent approvals (Postgres)
     if not case_service.can_move(case, new_status):
         raise HTTPException(status_code=409, detail="Cannot move a case from '%s' to '%s'" % (case.status, new_status))
     rule = rule_service.get_active_rule(db)
 
-    payment = None
     claim = latest_claim(db, case.id)
     shortfall = (claim.expected_amount - claim.received_amount) if claim else 0
+    dec = None
+    payment = None
     if action == "approve" and shortfall > 0:
         citizen = db.get(User, case.citizen_id)
-        consent_service.require(db, citizen.id, ConsentScope.complaints, user, "release approved payment")  # 403 if withdrawn
-        try:
-            res = get_mocks_client().complaint(citizen.cnic or "", "payment_topup",
-                                               "Approved top-up of PKR %d for case %s by %s" % (shortfall, case.id, user.id))
-        except MockUnavailable as exc:
-            audit.log(db, "agent", "agent:payments", "payment.failed", "case", case.id, after={"amount_pkr": shortfall, "error": str(exc)[:200]})
-            db.commit()
-            raise HTTPException(status_code=503, detail="The payment could not be released (%s). Nothing was changed; please try again." % exc)
-        payment = {"ticket_id": res.get("ticket_id"), "amount_pkr": shortfall, "channel": "mocks /complaints", "simulated": True}
+        consent_service.require(db, citizen.id, ConsentScope.payments, user, "release approved payment")  # 403 if withdrawn
+        # Reuse an earlier attempt for this case (it already owns an idempotency key) instead of starting a new payment.
+        dec = db.execute(select(Decision).where(Decision.case_id == case.id, Decision.action == "approve",
+                                                Decision.idempotency_key.isnot(None)).order_by(Decision.created_at.desc())).scalars().first()
+        if dec is None:
+            dec = Decision(case_id=case.id, action="approve", confidence=1.0, reasons=[reason], trace={"officer_decision": True},
+                           rule_id=rule.rule_id, rule_version=rule.version, decided_by=user.id, payment_status="pending")
+            db.add(dec)
+            db.flush()
+            dec.idempotency_key = "%s:%s" % (case.id, dec.id)
+            audit.log(db, "user", user.id, "payment.initiated", "case", case.id, after={"amount_pkr": shortfall, "idempotency_key": dec.idempotency_key})
+            db.commit()  # the key is durable BEFORE any money moves
+        dec.decided_by, dec.reasons = user.id, [reason]
+        via = "earlier attempt"  # payment already made by a previous attempt that did not finish the approval
+        if dec.payment_status != "paid":
+            try:
+                res = get_mocks_client().disburse(case.id, citizen.cnic or "", shortfall, dec.idempotency_key)
+            except MockUnavailable as exc:
+                dec.payment_status = "failed"
+                audit.log(db, "agent", "agent:payments", "payment.failed", "case", case.id,
+                          after={"amount_pkr": shortfall, "idempotency_key": dec.idempotency_key, "error": str(exc)[:200]})
+                db.commit()
+                raise HTTPException(status_code=503, detail="The payment could not be released (%s). Nothing was changed; please try again." % exc)
+            via = res.get("via")
+            dec.payment_ref, dec.payment_status = res.get("payment_ref"), "paid"
+            audit.log(db, "user", user.id, "payment.release", "case", case.id,
+                      after={"amount_pkr": shortfall, "payment_ref": dec.payment_ref, "via": via, "idempotency_key": dec.idempotency_key})
+            db.commit()  # the payment record is durable BEFORE the status changes
+        payment = {"payment_ref": dec.payment_ref, "amount_pkr": shortfall, "via": via,
+                   "idempotency_key": dec.idempotency_key, "simulated": True}
 
     case_service.change_status(db, case, new_status, user, "case.decide", note="Officer decision %s: %s" % (action, reason))
-    dec = Decision(case_id=case.id, action=action, confidence=1.0, reasons=[reason], trace={"officer_decision": True, "payment": payment},
-                   rule_id=rule.rule_id, rule_version=rule.version, model_version=None, decided_by=user.id)
-    db.add(dec)
+    if dec is None:
+        dec = Decision(case_id=case.id, action=action, confidence=1.0, reasons=[reason], trace={}, rule_id=rule.rule_id,
+                       rule_version=rule.version, decided_by=user.id)
+        db.add(dec)
+    dec.trace = {"officer_decision": True, "payment": payment}
     db.flush()
     audit.log(db, "user", user.id, "decision.create", "decision", dec.id,
-              after={"case_id": case.id, "action": action, "reason": reason, "rule_id": rule.rule_id, "rule_version": rule.version})
+              after={"case_id": case.id, "action": action, "reason": reason, "rule_id": rule.rule_id, "rule_version": rule.version,
+                     "payment_ref": dec.payment_ref})
     if payment:
-        case_service.add_note(case, user.id, "Payment released: PKR %d (ticket %s)" % (shortfall, payment["ticket_id"]))
-        audit.log(db, "user", user.id, "payment.release", "case", case.id, after=payment)
+        case_service.add_note(case, user.id, "Payment released: PKR %d (reference %s)" % (shortfall, payment["payment_ref"]))
     db.commit()
     return case_detail(db, case)
 

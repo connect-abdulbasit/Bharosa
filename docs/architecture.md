@@ -34,3 +34,28 @@ flowchart LR
 - **Services** (`/services`): notifications, webhooks and the Digital Twin simulation. They use the public API.
 - **Contracts** (`/contracts`): enums, Pydantic schemas, AI interface, OpenAPI lists and fixtures that let four people build in parallel.
 - **Claim pipeline**: consent check -> extract claim -> read document -> identity match -> ledger lookup -> decide -> explain -> persist and audit. If a mock fails, the case goes to `with_officer` with notes.
+
+
+## Backend internals
+
+```mermaid
+flowchart TB
+  C[Client or partner] -->|JWT or X-API-Key| MW[Middleware: CORS, request id + JSON log, gzip, rate limit, ETag]
+  MW --> R[Routers + require_role / public_access]
+  R -->|row-level checks| S[Services: cases, consent, rules, scam, payments]
+  R -->|202 + job row| J[(jobs table)]
+  W[Worker thread] -->|atomic claim| J
+  W --> P[Pipeline: extract, ID photo, identity, ledger, match, decide, explain, notify]
+  P --> AI[bharosa_ai]
+  P -->|consent.require first| MK[Mocks or fake client]
+  S --> DB[(Postgres)]
+  P --> DB
+  S -->|every change| AU[audit_log: append-only, DB trigger]
+  S -->|status change| EV[events.emit - webhook hook]
+```
+
+- **Request path**: every request gets an id (`X-Request-ID`), one JSON access-log line (role, latency) and one error format. Polled GETs support `ETag`; responses are gzipped and omit empty fields for weak connections.
+- **Claim agent**: `POST /claims` only saves the input and queues a job (202); the worker runs the steps, saving each one so `resume` continues where it stopped. A mock failure, missing consent or crash pauses the case with an officer note; it never becomes a 500.
+- **Payments**: the officer's approval stores an idempotency key on the decision before calling the rail, so retries cannot pay twice.
+- **Public API**: scoped, hashed, revocable keys; every use audited; per-key rate limits.
+- **Operations**: `/health` checks the database and mocks, optional Sentry, config in env vars, `backend/render.yaml` for deploy.

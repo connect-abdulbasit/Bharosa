@@ -14,10 +14,12 @@ dependencies = [
   "httpx>=0.26",
   "python-multipart>=0.0.9",
   "bcrypt>=4.0",
+  "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "ruff>=0.4"]
+monitoring = ["sentry-sdk>=1.40"]  # only used when SENTRY_DSN is set
 
 [build-system]
 requires = ["setuptools>=68"]

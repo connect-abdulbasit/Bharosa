@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import Consent, User
@@ -15,7 +16,7 @@ from app.services.serialize import consent_record
 from contracts.enums import Role
 from contracts.schemas import (ConsentCorrection, ConsentGrant, ConsentListResponse, ConsentRecord, ConsentWithdraw)
 
-router = APIRouter(tags=["consent"])
+router = APIRouter(tags=["consent"], route_class=CompactRoute)
 OWNERS = (Role.citizen, Role.helper)
 CORRECTABLE = {"name": "name", "phone": "phone"}
 

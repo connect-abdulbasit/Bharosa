@@ -380,8 +380,9 @@ def make_ctx(db: Session, actor: User, citizen: User, case: Case, claim: Claim, 
     return Ctx(db=db, actor=actor, citizen=citizen, case=case, claim=claim, mocks=mocks, rule=rule, state=load_state(claim))
 
 
-def start(db: Session, actor: User, citizen: User, transcript: Optional[str], document_id: Optional[str], mocks: Any, rule: RuleVersion):
-    case = Case(citizen_id=citizen.id, created_by=actor.id, status="submitted", current_step=STEPS[0], notes=[])
+def create(db: Session, actor: User, citizen: User, transcript: Optional[str], document_id: Optional[str]):
+    """Save the input: case + claim (+ audit), committed. The pipeline itself is run by a background job."""
+    case = Case(citizen_id=citizen.id, created_by=actor.id, status="submitted", current_step="queued", notes=[])
     db.add(case)
     db.flush()
     claim = Claim(case_id=case.id, claim_type="missing", expected_amount=0, received_amount=0, transcript=transcript,
@@ -392,22 +393,11 @@ def start(db: Session, actor: User, citizen: User, transcript: Optional[str], do
               after={"status": "submitted", "citizen_id": citizen.id, "via": "claim_pipeline"})
     audit.log(db, "user", actor.id, "claim.create", "claim", claim.id, after={"case_id": case.id, "citizen_id": citizen.id,
               "has_document": bool(document_id)})
-    db.commit()
-    ctx = make_ctx(db, actor, citizen, case, claim, mocks, rule)
-    run(ctx)
     return case, claim
 
 
-def resume(db: Session, actor: User, citizen: User, case: Case, claim: Claim, mocks: Any, rule: RuleVersion) -> bool:
-    """Continue from the saved step. Returns False if the claim had already finished (nothing to do)."""
-    ctx = make_ctx(db, actor, citizen, case, claim, mocks, rule)
-    if ctx.state.get("finished") or case.status in ("approved", "rejected", "closed"):
-        return False
-    audit.log(db, "user", actor.id, "claim.resume", "claim", claim.id, after={"from_step": ctx.state.get("current"),
-              "failed": ctx.state.get("failed")})
-    db.commit()
-    run(ctx)
-    return True
+def can_resume(case: Case, claim: Claim) -> bool:
+    return not load_state(claim).get("finished") and case.status not in ("approved", "rejected", "closed")
 
 
 # --------------------------------------------------------------------------- responses
@@ -442,3 +432,19 @@ def response(db: Session, case: Case, claim: Claim) -> Dict[str, Any]:
     return {"claim_id": claim.id, "case_id": case.id, "status": case.status, "draft": draft,
             "decision": d["decision"] or {}, "explanation_ur": d["explanation_ur"] or "", "explanation_en": d["explanation_en"] or "",
             "pipeline_steps": steps_view(state)}
+
+
+def progress(case: Case, claim: Claim, job_status: Optional[str]) -> Dict[str, Any]:
+    """Small, cheap payload for polling (pairs with ETag)."""
+    state = (claim.data or {}).get("pipeline", {})
+    steps = steps_view(state)
+    done = sum(1 for x in steps if x["status"] == "done")
+    out: Dict[str, Any] = {"claim_id": claim.id, "case_id": case.id, "status": case.status, "current_step": case.current_step or "queued",
+                           "finished": bool(state.get("finished")), "steps_done": done, "steps_total": len(STEPS),
+                           "steps": [{"step": x["step"], "status": x["status"]} for x in steps], "job": job_status,
+                           "active": job_status in ("queued", "running")}  # keep polling while True; False = settled (done, paused or failed)
+    if state.get("failed"):
+        out["failed"] = state["failed"]
+    if state.get("stopped"):
+        out["stopped"] = state["stopped"]
+    return out

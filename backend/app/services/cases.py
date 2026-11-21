@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models import Case, User
-from app.services import audit
+from app.services import audit, events
 from app.services.serialize import case_snapshot, iso
 from app.models.base import utcnow
 
@@ -39,3 +39,5 @@ def change_status(db: Session, case: Case, new_status: str, actor: User, action:
         add_note(case, actor.id, note)
     db.flush()
     audit.log(db, "user", actor.id, action, "case", case.id, before=before, after=case_snapshot(case))
+    events.emit("case.status_changed", {"case_id": case.id, "citizen_id": case.citizen_id, "from": before["status"], "to": new_status,
+                "by": actor.id, "action": action, "at": iso(utcnow())}, db)

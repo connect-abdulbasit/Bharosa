@@ -1,60 +1,114 @@
 """Bharosa platform API. Run: uvicorn app.main:app --reload --port 8000"""
 import logging
-import uuid
-from typing import Dict
+from contextlib import asynccontextmanager
+from typing import Any, Dict
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 
+from app import errors, logging_setup
 from app.config import settings
-from app.routers import apikeys, audit, auth, cases, claims, consent, documents, evalr, helper, messages, queue, rules
-from app.services import audit as audit_service
-from app.services.consent import ConsentRequired
+from app.db import session_factory
+from app.limiter import limiter
+from app.middleware import ETagMiddleware, RequestContextMiddleware
+from app.routers import (apikeys, audit, auth, cases, claims, consent, documents, evalr, helper, messages, public, queue,
+                         rules)
+from app.services import jobs
+from app.services.mocks_client import mocks_status
 
 log = logging.getLogger("bharosa")
 
-app = FastAPI(
-    title="Bharosa Platform API (PROTOTYPE - simulated data)",
-    version="0.2.0",
-    description="Trusted assistance layer for the fictional Sahara Relief Programme. "
-                "Not an official service. All identity, payment and SMS services are simulated.",
-)
-app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*", "X-Request-ID"], expose_headers=["X-Request-ID"])
+DESCRIPTION = """
+Trusted assistance layer for the **fictional Sahara Relief Programme**. **PROTOTYPE: not an official service; every identity,
+payment and SMS service is simulated** (`"simulated": true`).
+
+**Auth.** `POST /auth/login` returns a JWT (`Authorization: Bearer <token>`). Roles: citizen, helper, officer, admin, auditor,
+enforced server-side. Partners can use an **`X-API-Key`** header on the read-only `/public` routes (use *Authorize* below).
+
+**Safe by design.** Every state change is in the append-only audit log. Consent is checked before any mock call. Any payment
+needs an officer and is made once (idempotency key). Mock failures send a case to a human with a note, never a raw 500.
+
+**Weak internet.** Claims run in the background (`202` + `GET /claims/{id}/progress`). Polled GETs support `ETag` /
+`If-None-Match` (`304`). Responses are gzip-compressed and omit empty fields.
+
+**Limits.** `/auth/login` 5/min per IP; `/public` 30/min per API key; everything else 120/min per IP. Errors always look like
+`{"error", "message", "request_id"}`.
+"""
+
+TAGS = [
+    {"name": "auth", "description": "Login (JWT) and the current user. Citizens can set the PIN helpers need to grant consent for them."},
+    {"name": "cases", "description": "Case management: create, list (row-level filtered), assign, escalate, officer decision, close."},
+    {"name": "claims", "description": "The claim agent: file in the background (202), poll progress (ETag), resume after a failure."},
+    {"name": "messages", "description": "Scam check for SMS text, including a look-alike sender check."},
+    {"name": "documents", "description": "ID photo upload with OCR and blur check (asks for a retake when unclear)."},
+    {"name": "rules", "description": "Versioned, validated decision rules (json-logic). A new version is active immediately."},
+    {"name": "consent", "description": "See, grant, withdraw and correct consent. Helpers need the citizen's PIN to grant."},
+    {"name": "audit", "description": "Read-only, append-only audit log of user, AI and agent actions."},
+    {"name": "queue", "description": "Officer review queue sorted by risk, then confidence, then age."},
+    {"name": "helper", "description": "Helper Mode: the citizens linked to this helper."},
+    {"name": "apikeys", "description": "Admin: create (shown once), list and revoke partner API keys."},
+    {"name": "public", "description": "Read-only partner API. Header `X-API-Key`. Rate limited per key."},
+    {"name": "eval", "description": "Evaluation numbers computed from real decisions and checks."},
+    {"name": "meta", "description": "Health."},
+]
 
 
-@app.middleware("http")
-async def request_id_middleware(request: Request, call_next):
-    """Tag every request so related audit entries can be grouped (X-Request-ID in and out)."""
-    rid = (request.headers.get("x-request-id") or uuid.uuid4().hex)[:64]
-    token = audit_service.request_id_var.set(rid)
-    try:
-        response = await call_next(request)
-    finally:
-        audit_service.request_id_var.reset(token)
-    response.headers["X-Request-ID"] = rid
-    return response
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logging_setup.setup()
+    if settings.SENTRY_DSN:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=settings.ENVIRONMENT, release=settings.APP_VERSION,
+                            send_default_pii=False, traces_sample_rate=0.0)
+            log.info("sentry enabled")
+        except ImportError:
+            log.warning("SENTRY_DSN is set but sentry-sdk is not installed (pip install 'bharosa-backend[monitoring]')")
+        except Exception as exc:  # monitoring must never stop the API from starting (e.g. a malformed DSN)
+            log.warning("sentry could not be initialised (%s): continuing without it", exc)
+    if settings.PIPELINE_MODE == "thread":
+        jobs.worker.start()
+    yield
+    jobs.worker.stop()
 
 
-@app.exception_handler(ConsentRequired)
-async def consent_required_handler(request: Request, exc: ConsentRequired):
-    return JSONResponse(status_code=403, content={
-        "error": "consent_required", "scope": exc.scope, "citizen_id": exc.citizen_id,
-        "detail": "This needs the citizen's consent for '%s'. It is withdrawn or was never given." % exc.scope})
+app = FastAPI(title="Bharosa Platform API (PROTOTYPE - simulated data)", version=settings.APP_VERSION, description=DESCRIPTION,
+              openapi_tags=TAGS, lifespan=lifespan)
+app.state.limiter = limiter
+errors.install(app)
 
+# add_middleware: the LAST one added is the OUTERMOST. Order outer -> inner: CORS, request context, gzip, rate limit, etag.
+app.add_middleware(ETagMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(RequestContextMiddleware)
+app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True, allow_methods=["*"],
+                   allow_headers=["*"], expose_headers=["X-Request-ID", "ETag"])
 
-@app.exception_handler(Exception)
-async def unhandled(request: Request, exc: Exception):
-    # Never leak stack traces to clients.
-    log.exception("unhandled error")
-    return JSONResponse(status_code=500, content={"error": "internal_error", "request_id": audit_service.request_id_var.get()})
-
-
-for module in (auth, cases, claims, messages, documents, rules, consent, audit, queue, helper, apikeys, evalr):
+for module in (auth, cases, claims, messages, documents, rules, consent, audit, queue, helper, apikeys, public, evalr):
     app.include_router(module.router)
 
 
-@app.get("/health", tags=["meta"])
-def health() -> Dict[str, object]:
-    return {"status": "ok", "ai_mode": settings.AI_MODE, "mocks": settings.MOCKS_URL or "fake", "simulated": True}
+@app.get("/health", tags=["meta"], summary="Liveness + dependencies")
+@limiter.exempt
+def health(response: Response) -> Dict[str, Any]:
+    """200 when the database answers (what a deploy platform needs). Reports mocks reachability and the worker, but a mocks
+    outage only shows as `degraded`: the app still works (cases go to a human)."""
+    db_ok = True
+    try:
+        with session_factory()() as db:
+            db.execute(text("SELECT 1"))
+    except Exception:
+        log.exception("health: database check failed")
+        db_ok = False
+    mocks = mocks_status()
+    if not db_ok:
+        response.status_code = 503
+    return {"status": "ok" if db_ok and mocks["reachable"] else ("degraded" if db_ok else "down"),
+            "database": "ok" if db_ok else "down", "mocks": mocks, "ai_mode": settings.AI_MODE,
+            "worker": {"mode": settings.PIPELINE_MODE, "alive": jobs.worker.alive() if settings.PIPELINE_MODE == "thread" else None},
+            "version": settings.APP_VERSION, "environment": settings.ENVIRONMENT, "simulated": True}

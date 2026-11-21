@@ -25,7 +25,7 @@ def audit_actions(db, case_id):
 
 def test_happy_path_reaches_a_decision_with_rule_version(client, db, mocks):
     r = claim(client)
-    assert r.status_code == 200
+    assert r.status_code == 202
     b = r.json()
     # stub AI: claim confidence 0.81 -> between 0.60 and 0.90 -> ask_more -> needs_more_proof
     assert b["status"] == "needs_more_proof" and b["decision"]["action"] == "ask_more"
@@ -81,7 +81,7 @@ def test_wrong_person_goes_to_a_human(client, mocks):
 def test_identity_timeout_goes_to_officer_with_a_note_and_no_500(client, db, mocks):
     mocks.fail = {"identity"}
     r = claim(client)
-    assert r.status_code == 200
+    assert r.status_code == 202
     b = r.json()
     assert b["status"] == "with_officer" and b["decision"]["action"] == "send_to_human" and b["decision"]["decided_by"] == "agent"
     assert b["decision"]["rule_version"] == 1
@@ -109,7 +109,7 @@ def test_resume_is_limited_to_people_who_can_see_the_claim(client, mocks):
     cid = claim(client).json()["claim_id"]
     assert client.post("/claims/%s/resume" % cid, headers=auth(client, "citizen")).status_code == 404
     assert client.post("/claims/%s/resume" % cid, headers=auth(client, "officer")).status_code == 403
-    assert client.post("/claims/%s/resume" % cid, headers=auth(client, "helper")).status_code == 200  # linked
+    assert client.post("/claims/%s/resume" % cid, headers=auth(client, "helper")).status_code == 202  # linked
 
 
 def test_withdrawn_payments_consent_blocks_the_ledger_step_and_logs_it(client, db, mocks):
@@ -184,7 +184,7 @@ def test_unexpected_bug_never_becomes_a_500(client, db, mocks, monkeypatch):
 
     monkeypatch.setattr(bharosa_ai, "match_person", boom)
     r = claim(client)
-    assert r.status_code == 200 and r.json()["status"] == "with_officer"
+    assert r.status_code == 202 and r.json()["status"] == "with_officer"
     failed = [s for s in r.json()["pipeline_steps"] if s["status"] == "failed"][0]
     assert failed["step"] == "match_person" and "internal error" in failed["detail"] and "exploded" not in r.text
 
@@ -194,7 +194,7 @@ def test_helper_must_name_a_linked_citizen(client, mocks):
     assert client.post("/claims", json=SPEECH, headers=h).status_code == 422
     assert client.post("/claims", json=dict(SPEECH, on_behalf_of="u-citizen-11"), headers=h).status_code == 403
     ok = client.post("/claims", json=dict(SPEECH, on_behalf_of="u-citizen-5"), headers=h)
-    assert ok.status_code == 200
+    assert ok.status_code == 202
     assert client.get("/cases/" + ok.json()["case_id"], headers=auth(client, "citizen05")).json()["citizen_name"] == "Mohammad Rafiq"
 
 

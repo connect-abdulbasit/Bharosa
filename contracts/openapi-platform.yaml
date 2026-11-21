@@ -149,6 +149,51 @@ paths:
       responses:
         '200':
           description: '{"ok": true}'
+  /claims/{id}/progress:
+    get:
+      summary: GET /claims/{id}/progress (cheap poll, supports ETag / If-None-Match -> 304)
+      x-roles: [any visible]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ClaimProgress'
+  /apikeys/{id}/revoke:
+    post:
+      summary: POST /apikeys/{id}/revoke
+      x-roles: [admin]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ApiKeyRecord'
+  /public/cases/{id}/status:
+    get:
+      summary: GET /public/cases/{id}/status (X-API-Key scope cases:read, or JWT; minimal data)
+      x-roles: [apikey|any]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/PublicCaseStatus'
+  /public/messages/check:
+    post:
+      summary: POST /public/messages/check (X-API-Key scope messages:check, or JWT)
+      x-roles: [apikey|citizen,helper,officer,admin]
+      x-request-schema: MessageCheckRequest
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/MessageCheckResponse'
   /messages/check:
     post:
       summary: POST /messages/check

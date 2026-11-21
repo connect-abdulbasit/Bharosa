@@ -1,5 +1,6 @@
 """Local stand-in for /mocks (same 5 seed people as mocks/app/data). Used when MOCKS_URL is empty or unreachable.
 Unknown CNICs behave like the real mock: not found -> MockUnavailable."""
+import hashlib
 import itertools
 from typing import Any, Dict, List
 
@@ -21,6 +22,7 @@ LEDGER: Dict[str, List[Dict[str, Any]]] = {
     "0000042101004": [{"payment_id": "pay-1004", "amount_pkr": 12000, "date": "2026-09-05", "agent_id": "agent-022", "programme": _PROG}],
     "0000042101005": [{"payment_id": "pay-1005", "amount_pkr": 12000, "date": "2026-10-06", "agent_id": "agent-031", "programme": _PROG}],
 }
+PAYMENTS: Dict[str, str] = {}  # idempotency key -> payment reference
 _tickets = itertools.count(1)
 
 
@@ -39,6 +41,12 @@ class FakeMocksClient:
 
     def complaint(self, cnic: str, category: str, description: str) -> Dict[str, Any]:
         return {"ticket_id": "TKT-FAKE%04d" % next(_tickets), "simulated": True}
+
+    def disburse(self, case_id: str, cnic: str, amount_pkr: int, idempotency_key: str) -> Dict[str, Any]:
+        """Idempotent like the real endpoint should be: the same key returns the same reference and pays once."""
+        dup = idempotency_key in PAYMENTS
+        ref = PAYMENTS.setdefault(idempotency_key, "PAY-FAKE-%s" % hashlib.sha1(idempotency_key.encode()).hexdigest()[:8].upper())
+        return {"payment_ref": ref, "via": "payments", "duplicate": dup, "simulated": True}
 
     def senders(self) -> Dict[str, Any]:
         return {"senders": list(SENDERS), "simulated": True}

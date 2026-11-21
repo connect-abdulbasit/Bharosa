@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import Case, User
@@ -9,7 +10,7 @@ from app.services.serialize import iso, latest_decision
 from contracts.enums import Role
 from contracts.schemas import QueueResponse
 
-router = APIRouter(tags=["queue"])
+router = APIRouter(tags=["queue"], route_class=CompactRoute)
 AI_ACTIONS = {"auto_handle", "ask_more", "send_to_human"}
 
 

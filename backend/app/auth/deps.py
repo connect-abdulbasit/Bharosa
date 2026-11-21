@@ -20,7 +20,7 @@ bearer = HTTPBearer(auto_error=False)
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, creds: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(get_db)) -> User:
     if creds is None:
         raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})
     try:
@@ -30,6 +30,7 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer), db: 
     user = db.get(User, payload.get("sub", ""))
     if user is None:
         raise HTTPException(status_code=401, detail="Unknown user")
+    request.state.role = user.role  # picked up by the access log
     return user
 
 

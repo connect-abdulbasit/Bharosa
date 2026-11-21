@@ -18,7 +18,7 @@ def grant(client, **extra):
 def test_helper_grant_without_pin_is_403(client):
     withdraw_as_citizen(client)
     r = grant(client)
-    assert r.status_code == 403 and "PIN" in r.json()["detail"]
+    assert r.status_code == 403 and "PIN" in r.json()["message"]
     state = {i["scope"]: i["granted"] for i in client.get("/consent", headers=auth(client, "citizen")).json()["items"]}
     assert state["notifications"] is False  # nothing was granted
 
@@ -65,7 +65,7 @@ def test_helper_withdraw_and_correct_need_no_pin(client):
 
 def test_helper_cannot_grant_for_unlinked_even_with_a_pin(client):
     r = client.post("/consent", json={"scope": "identity", "citizen_id": UNLINKED, "pin": "1234"}, headers=auth(client, "helper"))
-    assert r.status_code == 403 and "linked" in r.json()["detail"]
+    assert r.status_code == 403 and "linked" in r.json()["message"]
 
 
 def test_helper_cannot_grant_for_citizen_without_a_pin(client, db):
@@ -75,7 +75,7 @@ def test_helper_cannot_grant_for_citizen_without_a_pin(client, db):
     db.commit()
     withdraw_as_citizen(client)
     r = grant(client, pin="1234")
-    assert r.status_code == 403 and "not set a PIN" in r.json()["detail"]
+    assert r.status_code == 403 and "not set a PIN" in r.json()["message"]
 
 
 def test_citizen_sets_a_new_pin(client):

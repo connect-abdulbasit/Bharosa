@@ -145,7 +145,7 @@ End-to-end scenarios (TODO(Hadi)) are listed in [e2e/README.md](e2e/README.md).
 | Demo video | _TODO: add URL_ |
 
 ## Known limitations
-_To be filled in honestly as we build._ Currently: everything except `/eval` is database-backed and the claim pipeline runs end to end, but AI runs in `stub` mode (the stub claim extractor always hears the name "Mohammad Aslam" with confidence 0.81, so most demo claims end in `needs_more_proof` or an officer queue); `/eval` still returns a fixture; no API-key authentication or rate limiting yet.
+_To be filled in honestly as we build._ Currently: the backend is database-backed end to end (claim agent in the background, public API keys, rate limiting, `/eval`), but AI runs in `stub` mode (the stub claim extractor always hears the name "Mohammad Aslam" with confidence 0.81, so most demo claims end in `needs_more_proof` or the officer queue); the mock `/payments/disburse` does not exist yet (the backend falls back to a `/complaints` ticket); ID photos are stored on local disk; webhooks are not delivered yet; nothing is deployed.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)

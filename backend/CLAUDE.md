@@ -4,9 +4,9 @@
 Read the root `CLAUDE.md` first.
 
 ## Contract
-Endpoints and models: `contracts/openapi-platform.yaml`, `contracts/schemas.py`, example responses `contracts/fixtures/`.
-`/auth/login`, `/me`, `/cases`, `/cases/{id}`, `/cases/{id}/assign|escalate|decide|close`, `/claims`, `/messages/check`, `/documents`, `/rules`, `/rules/{id}/versions`, `/consent`, `/consent/{id}/withdraw`, `/audit`, `/queue`, `/helper/families`, `/apikeys`, `/eval`.
-Routers currently return fixtures (marked TODO(Basit)) but already enforce RBAC and write audit entries. Keep response models: they validate fixtures and real data alike.
+Endpoints and models: `contracts/openapi-platform.yaml`, `contracts/schemas.py`, example responses `contracts/fixtures/`. Swagger at `/docs` (tagged, with examples and the `X-API-Key` scheme).
+Private (JWT): `/auth/login`, `/me`, `/me/pin`, `/cases`, `/cases/{id}`, `/cases/{id}/assign|escalate|decide|close`, `/claims`, `/claims/{id}`, `/claims/{id}/progress`, `/claims/{id}/resume`, `/messages/check`, `/documents`, `/rules`, `/rules/{id}/versions`, `/consent`, `/consent/{id}/withdraw|correct`, `/audit`, `/queue`, `/helper/families`, `/apikeys`, `/apikeys/{id}/revoke`, `/eval`.
+Public (`X-API-Key` or JWT, read-only, rate limited per key): `GET /public/cases/{id}/status`, `POST /public/messages/check`. Meta: `/health`.
 
 ## Rules
 - **Every route has `require_role`** (except `/health`, `/auth/login`). Roles come from the server-side user record, not the token claim alone.
@@ -21,40 +21,46 @@ Routers currently return fixtures (marked TODO(Basit)) but already enforce RBAC 
 - No real personal data. Demo users/passwords are fake (`.env.example`).
 
 ## Status
-Database step and agent step are done. Alembic: `0001` schema, `0002` PIN / consent confirmation / document owner / checked messages, `0003` Postgres trigger that blocks UPDATE/DELETE/TRUNCATE on `audit_log` (skipped on SQLite).
-Still fixtures: only `/eval`.
+Done: DB models + Alembic `0001`-`0004`, seed, auth/RBAC, audit (+ Postgres trigger `0003`), cases, consent (+ helper PIN rule), claim pipeline, versioned/validated rules, scam check, documents, officer decide + idempotent payments, queue, helper families, **background pipeline, public API keys, rate limiting, global error format, low-bandwidth support, `/eval`, events hook, monitoring, deploy config**.
+Nothing is deployed: only config (`backend/render.yaml`, `backend/DEPLOY.md`, `Dockerfile`, `start.sh`).
 
-### Claim pipeline (`services/pipeline.py`)
-`POST /claims` -> `extract_claim -> read_document -> identity_lookup -> ledger_lookup -> match_person -> decide -> explain -> notify`.
-- State lives in `claims.data["pipeline"]` and `cases.current_step`; every step commits, so `POST /claims/{id}/resume` continues without redoing finished steps. Finished claims resume as a no-op.
-- `consent.require` runs before each identity/ledger call. Missing consent, a mock error/timeout, or an unexpected bug => progress saved, status `with_officer`, a case note, a `send_to_human` decision by `agent`, and a normal 200 response (never a 500).
-- Audit per step: `ai.<step>` (actor_type `ai`) or `agent.<step>` (actor_type `agent`) with input summary, output, confidence, model_version.
-- Mapping (`map_decision`): auto_handle -> `approved` only when no payment is needed (otherwise `with_officer`: a payment always needs an officer); ask_more -> `needs_more_proof` (+ list of needs); send_to_human -> `with_officer`.
-- The agent only looks up the ACCOUNT's own CNIC (never one supplied by the caller). Flags counted are those in the active rule's `red_flags`; `duplicate_claim` (open claim for the same month) always goes to an officer.
-- Stub AI caveat: `extract_claim` always returns the name "Mohammad Aslam" and confidence 0.81, so with `AI_MODE=stub` most claims end `needs_more_proof`/`with_officer`; only Aslam's name matches. Tests patch `bharosa_ai` functions to reach other paths.
+### Claim pipeline (`services/pipeline.py`) and background jobs (`services/jobs.py`)
+- `POST /claims` saves case + claim, writes a row in the **`jobs` table** and returns **202** (`case_id`, `claim_id`, `current_step`, `progress_url`). An in-process worker thread (started in the app lifespan; `PIPELINE_MODE=thread`) runs `extract_claim -> read_document -> identity_lookup -> ledger_lookup -> match_person -> decide -> explain -> notify`. `PIPELINE_MODE=inline` runs the job inside the request (tests). Jobs are claimed with one atomic `UPDATE ... WHERE status='queued'`, so several processes are safe; stale `running` jobs are re-queued at start; a queued job survives a restart.
+- `GET /claims/{id}/progress` is the cheap poll (ETag/304). `POST /claims/{id}/resume` enqueues a resume job (202), idempotent while one is active or the claim finished.
+- State is in `claims.data["pipeline"]` + `cases.current_step`; every step commits, so resume never redoes finished steps.
+- `consent.require` before each identity/ledger call. Missing consent, a mock error/timeout, or an unexpected bug => progress saved, `with_officer`, case note, `send_to_human` decision by `agent`, no 500.
+- Audit per step: `ai.<step>` / `agent.<step>` with input summary, output, confidence, model_version.
+- Mapping (`map_decision`): auto_handle -> `approved` only without a payment (else `with_officer`); ask_more -> `needs_more_proof`; send_to_human -> `with_officer`. One open claim per citizen per month (`duplicate_claim` -> officer). Only the ACCOUNT's own CNIC is ever looked up.
+- Stub AI caveat: `extract_claim` always returns "Mohammad Aslam" at confidence 0.81, so most stub-mode claims end `needs_more_proof`/`with_officer`. Tests patch `bharosa_ai` to reach other paths.
 
-### Other behaviour
-- Rules: `services/jsonlogic.py` validates structure, variables and behaviour (must always return an action, never auto_handle with red flags or confidence <= 0.3) before a version is saved; invalid => 422 with a clear message + `rule.rejected` audit. Every decision stores `rule_id` + `rule_version`.
-- Officer `decide`: `reason` (or `note`) required; approve with a payment calls mocks `/complaints` (needs `complaints` consent), records ticket in the decision trace + `payment.release` audit; failure => 503 and nothing changes.
-- Scam check (`services/scam.py`): AI verdict + official sender list from mocks; look-alike senders (9O9O) are scams; unofficial senders are never "genuine"; each check stored in `checked_messages` (hash only).
-- Helper rule: GRANTING consent for a citizen needs the citizen's 4-digit PIN (`users.pin_hash`, seed PIN from `DEMO_CITIZEN_PIN`); event stores `actor_id = helper`, `confirmed_by = citizen`; 5 wrong PINs in 15 min => 429. Citizens set it with `POST /me/pin`.
-- Documents: `POST /documents` (multipart) stores the file in `UPLOAD_DIR`, sniffs PNG/JPEG/WebP, runs OCR + blur check, returns `retake_needed`.
+### Payments (officer `decide`)
+`reason` (or `note`) is required. Approving a case with a shortfall: consent `payments` -> **decision row saved with `idempotency_key = case_id:decision_id` and committed BEFORE** -> `mocks.disburse(...)` (POST `/payments/disburse`; on 404 falls back to the `/complaints` ticket; **TODO(Hadi)** implement the endpoint, shape in `contracts/openapi-mocks.yaml`) -> `payment_ref` + `payment_status=paid` committed -> status change. Retries/second approvals reuse the same decision and key, so nobody is paid twice; a payment already made is never repeated. The case row is locked (`FOR UPDATE`) against concurrent approvals. Failure => 503, nothing changes.
+
+### Public API, limits, errors, low bandwidth
+- API keys: `POST /apikeys` (admin; shown once, sha256 stored; scopes `cases:read`, `messages:check`), list, `POST /apikeys/{id}/revoke`. `auth/apikey.py` `public_access(scope)` accepts `X-API-Key` or a JWT on `/public` routes only; every use is audited (`apikey.use`, denials `apikey.denied`) and updates `last_used_at`. Keys never open private routes.
+- Rate limits (slowapi, settings-driven): `LOGIN_RATE_LIMIT` 5/min per IP, `PUBLIC_RATE_LIMIT` 30/min per key, `DEFAULT_RATE_LIMIT` 120/min per IP; `TRUST_PROXY=1` behind a proxy. 429 is JSON with `Retry-After`.
+- Errors: `app/errors.py`. Always `{error, message, request_id}` (+ `fields` for 422; `scope`/`citizen_id` for consent). Full errors are logged with the request id; clients never get traces or input values.
+- Low bandwidth: gzip, null fields omitted (`CompactRoute`), `ETag`/`If-None-Match` on `/cases/{id}`, `/queue`, `/claims/{id}/progress`, `/public/cases/{id}/status`.
+- `/eval`: live numbers from decisions (by action, officer overrides of AI, average confidence), jobs (average pipeline seconds), checked messages, plus `ai/eval/eval_results.json` as `model_eval` when present. Shape: `LiveEvalResults`.
+- Events: `services/events.emit("case.status_changed", payload, db)` is called from `change_status`; it writes an audit row and a local list. **TODO(Hadi)**: real webhook delivery.
+- Monitoring: JSON logs (`app/logging_setup.py`, access log in `app/middleware.py` with request id, role, latency), optional Sentry (`SENTRY_DSN`), `/health` = database + mocks reachability + worker (503 only when the database is down).
 
 Conventions:
-- Pass the request's `db` session to `audit.log(...)`; it only `add()`s, so the entry commits atomically with the change. When the request will fail afterwards (login failure, blocked consent) commit first, then raise.
-- Auditors are read-only: enforced centrally in `require_role` (any non-GET method is 403).
+- Pass the request's `db` session to `audit.log(...)`; it only `add()`s, so the entry commits atomically with the change. When the request will fail afterwards (login failure, blocked consent, failed payment) commit first, then raise.
+- Auditors are read-only: enforced centrally in `require_role` and `public_access` (any non-GET is 403).
 - Row-level access lives in `services/access.py`; objects a user may not see answer 404.
-- Status changes go through `services/cases.change_status` (validates transitions, always audits).
+- Status changes go through `services/cases.change_status` (validates transitions, audits, emits the event).
 - JSON columns are not change-tracked: assign a NEW (deep-copied) object, never mutate in place.
-- Extra columns beyond the original spec: `users.username`, `users.cnic` (fake), `users.pin_hash`, `api_keys.prefix`, `consent_events.confirmed_by`, `documents.owner_id` (+ nullable `case_id`).
+- Every router uses `route_class=CompactRoute`; give new routes a tag, a summary and (for bodies) `openapi_examples`.
+- Tests use a SQLite FILE per test (the worker thread needs its own connections) and `PIPELINE_MODE=inline`; the `mocks` fixture patches `get_mocks_client` in `routers.cases|messages|public` and `services.jobs`.
+- Extra columns beyond the original spec: `users.username`, `users.cnic` (fake), `users.pin_hash`, `api_keys.prefix`, `consent_events.confirmed_by`, `documents.owner_id` (+ nullable `case_id`), `decisions.payment_ref|payment_status|idempotency_key`, table `jobs`.
 
 ## Tasks
-- [x] Models, migrations, seed, auth + RBAC, audit (+ Postgres trigger), cases, consent (+ helper PIN rule).
-- [x] Claim pipeline with resume, versioned/validated rules, scam check, documents, officer decide + payment, queue, helper families.
-- [ ] TODO(Basit): `/eval` from `ai/eval_results.json`.
-- [ ] TODO(Basit): API-key authentication (`X-API-Key` + scopes) and per-key rate limiting; general rate limiting.
-- [ ] TODO(Basit): background/queued pipeline runs for slow mocks (today the request waits, mocks timeout is 5 s per call).
-- [ ] TODO(Basit): logs, deploy (Render/Railway + Supabase Postgres), deployed URL in README.
+- [x] Everything above.
+- [ ] TODO(Basit): deploy (Render/Railway + Supabase) using `backend/render.yaml` + `DEPLOY.md`; put the URL in the README.
+- [ ] TODO(Basit): object storage for ID photos (local disk is lost on free hosts); per-key quotas beyond rate limits.
+- [ ] TODO(Hadi): `/payments/disburse` in `/mocks` (idempotent); real webhook delivery behind `events.emit`.
+- [ ] TODO(Hani): frontend live mode must treat `POST /claims` as 202 + poll `/claims/{id}/progress`, and read errors from `message`.
 
 ## Run / test
 ```

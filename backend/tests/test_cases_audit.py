@@ -31,7 +31,7 @@ def test_every_status_change_creates_an_audit_row(client, db):
         assert row.actor_type == "user"
 
     rows = rows_for(db, cid)
-    assert [r.action for r in rows if r.action != "payment.release"] == ["case.create", "case.escalate", "case.decide", "case.decide", "case.close"]
+    assert [r.action for r in rows if r.action not in ("payment.release", "payment.initiated")] == ["case.create", "case.escalate", "case.decide", "case.decide", "case.close"]
     assert rows[0].before is None and rows[0].after["status"] == "submitted"
 
 

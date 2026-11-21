@@ -52,7 +52,7 @@ def test_too_deep_and_too_big_are_rejected():
 
 def test_api_rejects_invalid_rule_saves_nothing_and_audits(client, db):
     r = publish(client, logic={"if": [True, "auto_handle", "auto_handle"]})
-    assert r.status_code == 422 and "Unsafe rule" in r.json()["detail"]
+    assert r.status_code == 422 and "Unsafe rule" in r.json()["message"]
     assert db.query(RuleVersion).count() == 1  # still only v1
     assert client.get("/rules", headers=auth(client, "admin")).json()["items"][0]["current_version"] == 1
     assert db.execute(select(AuditLog).where(AuditLog.action == "rule.rejected")).scalars().first() is not None

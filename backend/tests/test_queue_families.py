@@ -35,5 +35,5 @@ def test_families_show_latest_case_status_and_only_linked(client):
     assert items["Zubaida Khatoon"]["latest_case_status"] == "needs_more_proof"
     assert items["Gul Bano"]["latest_case_status"] == "approved"
     assert items["Fatima Bibi"]["latest_case_status"] == "submitted"
-    assert items["Allah Ditta"]["latest_case_status"] is None and items["Allah Ditta"]["last_action"] == "No cases yet"
+    assert "latest_case_status" not in items["Allah Ditta"]  # compact: null fields are omitted and items["Allah Ditta"]["last_action"] == "No cases yet"
     assert "Rashid Mehmood" not in items

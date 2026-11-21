@@ -62,7 +62,7 @@ def case_detail(db: Session, case: Case) -> Dict[str, Any]:
         "pipeline_steps": [], "rule_version": None,
     })
     if dec is not None:
-        out["decision"] = {"action": dec.action, "confidence": dec.confidence, "reasons": dec.reasons,
+        out["decision"] = {"id": dec.id, "action": dec.action, "confidence": dec.confidence, "reasons": dec.reasons,
                            "trace": dec.trace, "rule_version": dec.rule_version,
                            "requires_officer_approval": True, "model_version": dec.model_version,
                            "decided_by": dec.decided_by}

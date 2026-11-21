@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import Rule, RuleVersion, User
@@ -13,7 +14,7 @@ from contracts.enums import Role
 from contracts.schemas import RuleListResponse, RuleVersionCreate, RuleVersionsResponse
 from contracts.schemas import RuleVersion as RuleVersionOut
 
-router = APIRouter(tags=["rules"])
+router = APIRouter(tags=["rules"], route_class=CompactRoute)
 READERS = (Role.officer, Role.admin, Role.auditor)
 
 

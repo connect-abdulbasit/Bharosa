@@ -25,6 +25,8 @@ services:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-bharosa}:${POSTGRES_PASSWORD:-bharosa}@postgres:5432/${POSTGRES_DB:-bharosa}
       MOCKS_URL: http://mocks:8001
       AI_MODE: ${AI_MODE:-stub}
+      PIPELINE_MODE: thread
+      UPLOAD_DIR: /data/uploads
       SEED_ON_START: "1"   # idempotent demo data (fake). Set to 0 to disable
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-not-for-production-0000}
     ports: ["8000:8000"]

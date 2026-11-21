@@ -31,6 +31,13 @@ def session_factory() -> sessionmaker:
     return _SessionLocal
 
 
+def override_session_factory(maker: Optional[sessionmaker]) -> None:
+    """Tests: point the app AND the background worker at a test database."""
+    global _SessionLocal, _engine
+    _SessionLocal = maker
+    _engine = maker.kw["bind"] if maker is not None else None
+
+
 def get_db() -> Iterator[Session]:
     db = session_factory()()
     try:

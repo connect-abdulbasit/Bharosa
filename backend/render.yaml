@@ -1,0 +1,51 @@
+# Render Blueprint for the Bharosa backend. NOT deployed yet: this is only the config.
+# Render: New > Blueprint > select this repo, then set "Blueprint file path" to backend/render.yaml.
+# Build context is the repo root (the image also needs /contracts and /ai).
+services:
+  - type: web
+    name: bharosa-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health          # 200 when the database answers; 503 when it does not
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL             # Supabase: postgresql+psycopg2://USER:PASS@HOST:5432/postgres?sslmode=require (direct, not the pooler)
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS             # the deployed frontend origin(s), comma separated, e.g. https://bharosa.vercel.app
+        sync: false
+      - key: MOCKS_URL                # leave empty to use the built-in fake mocks, or the URL of the deployed mocks service
+        sync: false
+      - key: AI_MODE
+        value: stub
+      - key: TRUST_PROXY              # behind Render's proxy: rate limits use the real client IP
+        value: "1"
+      - key: ENVIRONMENT
+        value: production
+      - key: SEED_ON_START            # FAKE demo users/cases for the judges; set to 0 once real data exists
+        value: "1"
+      - key: SENTRY_DSN               # optional
+        sync: false
+      - key: LLM_API_KEY              # only for AI_MODE=real
+        sync: false
+      - key: UPLOAD_DIR               # ID photos. Free plans have no persistent disk: files are lost on redeploy (see DEPLOY.md)
+        value: /data/uploads
+      # Demo passwords are FAKE but public in the README. For a public URL, set your own values for judges:
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_OFFICER_PASSWORD
+        sync: false
+      - key: DEMO_AUDITOR_PASSWORD
+        sync: false
+      - key: DEMO_HELPER_PASSWORD
+        sync: false
+      - key: DEMO_CITIZEN_PASSWORD
+        sync: false
+    # Paid plans only: keep uploads across deploys
+    # disk:
+    #   name: uploads
+    #   mountPath: /data
+    #   sizeGB: 1

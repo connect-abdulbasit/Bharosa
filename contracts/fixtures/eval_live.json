@@ -1,0 +1,52 @@
+{
+  "decisions": {
+    "total": 9,
+    "ai_total": 6,
+    "agent_total": 1,
+    "officer_total": 2,
+    "by_action": {
+      "auto_handle": 2,
+      "ask_more": 2,
+      "send_to_human": 2
+    },
+    "officer_by_action": {
+      "approve": 1,
+      "reject": 1
+    },
+    "by_rule_version": {
+      "rule-stipend-short-payment v1": 8,
+      "rule-stipend-short-payment v2": 1
+    }
+  },
+  "officer_vs_ai": {
+    "compared": 2,
+    "overrides": 1,
+    "override_rate": 0.5,
+    "pairs": {
+      "auto_handle -> approve": 1,
+      "auto_handle -> reject": 1
+    }
+  },
+  "confidence": {
+    "ai_average": 0.78,
+    "by_action": {
+      "auto_handle": 0.95,
+      "ask_more": 0.74,
+      "send_to_human": 0.55
+    }
+  },
+  "pipeline": {
+    "runs": 6,
+    "average_seconds": 0.42,
+    "max_seconds": 1.3
+  },
+  "messages": {
+    "total": 12,
+    "by_label": {
+      "scam": 7,
+      "genuine": 3,
+      "unsure": 2
+    },
+    "average_confidence": 0.88
+  }
+}

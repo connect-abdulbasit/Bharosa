@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import ANY_ROLE, require_role
 from app.auth.jwt import create_token
 from app.auth.passwords import hash_password, verify_password
 from app.config import settings
+from app.limiter import limiter
 from app.db import get_db
 from app.models import User
 from app.services import audit
@@ -13,11 +15,14 @@ from contracts.enums import Role
 from contracts.schemas import LoginRequest, Me, TokenResponse
 from pydantic import BaseModel
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(tags=["auth"], route_class=CompactRoute)
 
 
-@router.post("/auth/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@router.post("/auth/login", response_model=TokenResponse, summary="Log in (5 attempts per minute per IP)")
+@limiter.limit(lambda: settings.LOGIN_RATE_LIMIT)
+def login(request: Request, body: LoginRequest = Body(..., openapi_examples={"officer": {"summary": "Demo officer (fake password)", "value": {"username": "officer", "password": "officer-demo-123"}}}),
+          db: Session = Depends(get_db)):
+    """Returns a JWT. Wrong credentials answer 401 and are audited; too many tries from one IP answer 429."""
     user = db.execute(select(User).where(or_(User.username == body.username, User.phone == body.username))).scalars().first()
     if user is None or not verify_password(body.password, user.password_hash):
         audit.log(db, "system", None, "auth.login_failed", "user", user.id if user else None,

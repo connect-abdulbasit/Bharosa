@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import AuditLog
@@ -12,7 +13,7 @@ from app.services.serialize import iso
 from contracts.enums import Role
 from contracts.schemas import AuditListResponse
 
-router = APIRouter(tags=["audit"])
+router = APIRouter(tags=["audit"], route_class=CompactRoute)
 
 
 @router.get("/audit", response_model=AuditListResponse)

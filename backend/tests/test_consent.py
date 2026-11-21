@@ -47,7 +47,7 @@ def test_claim_after_withdrawal_pauses_with_officer_and_logs_blocked(client, db,
     h = auth(client, "citizen05")
     client.post("/consent/%s/withdraw" % PAY5, headers=h)
     r = client.post("/claims", json=CLAIM, headers=h)
-    assert r.status_code == 200
+    assert r.status_code == 202
     body = r.json()
     assert body["status"] == "with_officer"
     failed = [s for s in body["pipeline_steps"] if s["status"] == "failed"]
@@ -59,7 +59,7 @@ def test_claim_after_withdrawal_pauses_with_officer_and_logs_blocked(client, db,
 def test_helper_claim_blocked_when_citizen_withdrew(client, db, mocks):
     client.post("/consent/%s/withdraw" % PAY5, headers=auth(client, "citizen05"))
     r = client.post("/claims", json=dict(CLAIM, on_behalf_of="u-citizen-5"), headers=auth(client, "helper"))
-    assert r.status_code == 200 and r.json()["status"] == "with_officer"
+    assert r.status_code == 202 and r.json()["status"] == "with_officer"
     assert audit_rows(db, "consent.blocked")[-1].actor_id == "u-helper-1"
 
 

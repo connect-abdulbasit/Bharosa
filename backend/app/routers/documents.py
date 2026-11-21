@@ -6,6 +6,7 @@ import bharosa_ai as ai
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.config import settings
 from app.db import get_db
@@ -15,7 +16,7 @@ from app.services.access import resolve_citizen
 from contracts.enums import Role
 from contracts.schemas import DocumentResponse
 
-router = APIRouter(tags=["documents"])
+router = APIRouter(tags=["documents"], route_class=CompactRoute)
 MAGIC = [(b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"), (b"RIFF", ".webp")]
 BLUR_RETAKE = 0.5
 

@@ -78,6 +78,20 @@ class NotifyResponse(SimulatedModel):
     message_id: str
 
 
+class PaymentDisburseRequest(BaseModel):
+    """POST /payments/disburse (mock payments rail). TODO(Hadi): implement in /mocks; must honour idempotency_key."""
+
+    case_id: str
+    cnic: str
+    amount_pkr: int
+    idempotency_key: str
+
+
+class PaymentDisburseResponse(SimulatedModel):
+    payment_ref: str
+    duplicate: bool = False  # true when the same idempotency_key was seen before (no second payment)
+
+
 class ChaosState(SimulatedModel):
     timeout: bool = False
     error_500: bool = False
@@ -197,6 +211,38 @@ class ClaimResponse(BaseModel):
     explanation_ur: str
     explanation_en: str
     pipeline_steps: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ClaimAccepted(ClaimResponse):
+    """202 from POST /claims: same fields as ClaimResponse (still empty while the agent runs) plus polling info."""
+
+    current_step: str
+    finished: bool = False
+    progress_url: str
+
+
+class ClaimProgress(BaseModel):
+    claim_id: str
+    case_id: str
+    status: CaseStatus
+    current_step: str
+    finished: bool
+    steps_done: int
+    steps_total: int
+    steps: List[Dict[str, str]] = Field(default_factory=list)
+    job: Optional[str] = None  # queued | running | done | failed
+    active: bool = False  # True while a background job is queued/running: keep polling; False = settled (finished OR paused)
+    failed: Optional[Dict[str, Any]] = None
+    stopped: Optional[Dict[str, Any]] = None
+
+
+class PublicCaseStatus(BaseModel):
+    """Deliberately minimal: no names, amounts or notes."""
+
+    case_id: str
+    status: CaseStatus
+    current_step: Optional[str] = None
+    updated_at: str
 
 
 class MessageCheckRequest(BaseModel):
@@ -361,3 +407,14 @@ class EvalResults(BaseModel):
     cost_assumptions: Dict[str, int]
     total_cost: int
     confusion: Dict[str, Dict[str, int]]
+
+
+class LiveEvalResults(BaseModel):
+    """GET /eval: numbers computed from what the system actually did (see also EvalResults for the offline model eval)."""
+
+    decisions: Dict[str, Any]
+    officer_vs_ai: Dict[str, Any]
+    confidence: Dict[str, Any]
+    pipeline: Dict[str, Any]
+    messages: Dict[str, Any]
+    model_eval: Optional[Dict[str, Any]] = None  # contents of ai/eval/eval_results.json when present

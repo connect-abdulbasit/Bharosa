@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import User
@@ -9,7 +10,7 @@ from app.services.mocks_client import get_mocks_client
 from contracts.enums import Role
 from contracts.schemas import MessageCheckRequest, MessageCheckResponse
 
-router = APIRouter(tags=["messages"])
+router = APIRouter(tags=["messages"], route_class=CompactRoute)
 
 
 @router.post("/messages/check", response_model=MessageCheckResponse)

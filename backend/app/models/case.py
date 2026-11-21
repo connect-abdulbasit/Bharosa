@@ -64,6 +64,9 @@ class Decision(Base):
     rule_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model_version: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     decided_by: Mapped[str] = mapped_column(String(36))  # 'ai' or a user id
+    payment_status: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # pending | paid | failed
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)  # case_id:decision_id
+    payment_ref: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)  # reference returned by the payments rail
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -80,3 +83,20 @@ class CheckedMessage(Base):
     sender: Mapped[str] = mapped_column(String(60))
     area: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Job(Base):
+    """Background work queue (database-backed, so queued claims survive a restart)."""
+
+    __tablename__ = "jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kind: Mapped[str] = mapped_column(String(30))  # claim_start | claim_resume
+    claim_id: Mapped[str] = mapped_column(ForeignKey("claims.id"), index=True)
+    actor_id: Mapped[str] = mapped_column(String(36))  # who asked (audit + consent actor)
+    status: Mapped[str] = mapped_column(String(10), index=True, default="queued")  # queued | running | done | failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

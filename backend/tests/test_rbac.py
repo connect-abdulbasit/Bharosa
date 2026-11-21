@@ -37,6 +37,8 @@ ENDPOINTS = [
     ("GET", "/apikeys", None, {"admin"}),
     ("POST", "/apikeys", lambda r: {"name": "partner", "scopes": ["cases:read"]}, {"admin"}),
     ("GET", "/eval", None, {"officer", "admin", "auditor"}),
+    ("GET", "/public/cases/%s/status" % C1_CASE, None, set(ROLES)),
+    ("POST", "/public/messages/check", lambda r: {"text": "pay fee", "sender": "1234"}, {"citizen", "helper", "officer", "admin"}),
 ]
 IDS = ["%s %s" % (m, p) for m, p, *_ in ENDPOINTS]
 
@@ -56,7 +58,7 @@ def test_role_vs_endpoint(client, role, method, path, body, allowed):
     headers = auth(client, role)
     resp = call(client, method, path, body(role) if body else None, headers)
     if role in allowed:
-        assert resp.status_code == 200, (role, method, path, resp.status_code, resp.text)
+        assert resp.status_code == (202 if path == "/claims" else 200), (role, method, path, resp.status_code, resp.text)
     else:
         assert resp.status_code == 403, (role, method, path, resp.status_code, resp.text)
 

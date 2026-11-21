@@ -45,6 +45,25 @@ class MocksClient:
     def senders(self) -> Dict[str, Any]:
         return self._call("GET", "/senders")
 
+    def disburse(self, case_id: str, cnic: str, amount_pkr: int, idempotency_key: str) -> Dict[str, Any]:
+        """Pay out through POST /payments/disburse. The mocks service may not have that endpoint yet
+        (TODO(Hadi)): on 404 fall back to the /complaints top-up ticket, which is what we used before.
+        The same idempotency_key must never pay twice (the endpoint is expected to honour it)."""
+        try:
+            r = httpx.post(self.base_url + "/payments/disburse", timeout=self.timeout, headers={"Idempotency-Key": idempotency_key},
+                           json={"case_id": case_id, "cnic": cnic, "amount_pkr": amount_pkr, "idempotency_key": idempotency_key})
+        except httpx.HTTPError as exc:
+            raise MockUnavailable("POST /payments/disburse failed: %s" % (str(exc).splitlines() or ["error"])[0])
+        if r.status_code == 404:
+            res = self.complaint(cnic, "payment_topup", "Approved top-up of PKR %d for case %s (key %s)" % (amount_pkr, case_id, idempotency_key))
+            return {"payment_ref": res["ticket_id"], "via": "complaints_fallback", "duplicate": False, "simulated": True}
+        try:
+            r.raise_for_status()
+            data = r.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise MockUnavailable("POST /payments/disburse failed: %s" % (str(exc).splitlines() or ["error"])[0])
+        return {"payment_ref": data.get("payment_ref"), "via": "payments", "duplicate": bool(data.get("duplicate")), "simulated": True}
+
     def notify(self, to: str, message: str, channel: str = "sms") -> Dict[str, Any]:
         return self._call("POST", "/notify", json={"to": to, "message": message, "channel": channel})
 
@@ -73,3 +92,11 @@ def get_mocks_client():
             return MocksClient(settings.MOCKS_URL)
         log.warning("MOCKS_URL=%s is unreachable: using the in-process fake mocks client", settings.MOCKS_URL)
     return FakeMocksClient()
+
+
+def mocks_status() -> dict:
+    """For /health: which mocks are in use and whether the real ones answer."""
+    if not settings.MOCKS_URL:
+        return {"mode": "fake", "reachable": True}
+    ok = _reachable(settings.MOCKS_URL)
+    return {"mode": "real" if ok else "fake (real unreachable)", "reachable": ok, "url": settings.MOCKS_URL}

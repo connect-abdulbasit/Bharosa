@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.routing import CompactRoute
 from app.auth import require_role
 from app.db import get_db
 from app.models import Case, Family, User
@@ -9,7 +10,7 @@ from app.services import consent as consent_service
 from contracts.enums import Role
 from contracts.schemas import HelperFamiliesResponse
 
-router = APIRouter(tags=["helper"])
+router = APIRouter(tags=["helper"], route_class=CompactRoute)
 
 
 @router.get("/helper/families", response_model=HelperFamiliesResponse)
