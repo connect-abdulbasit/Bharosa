@@ -28,6 +28,7 @@ from app.config import settings
 from app.models import Case, Claim, Decision, Document, User
 from app.services import audit
 from app.services import cases as case_service
+from app.services import documents as doc_store
 from app.services import consent as consent_service
 from app.services.consent import ConsentRequired
 from app.services.mock_errors import MockUnavailable
@@ -189,11 +190,11 @@ def step_read_document(ctx: Ctx) -> Dict[str, Any]:
         _audit(ctx, "agent", "read_document", {}, {"skipped": "no ID photo uploaded"})
         return {"skipped": True, "usable": False}
     doc = ctx.db.get(Document, doc_id)
-    path = settings.UPLOAD_DIR / doc.file_path if doc and doc.file_path else None
-    if doc is None or path is None or not path.exists():
+    image = doc_store.load(ctx.db, doc) if doc is not None else None
+    if image is None:
         ctx.state["needs"].append("Upload the ID card photo again (we could not open the saved file)")
         return {"skipped": True, "usable": False, "error": "file missing"}
-    reading = ai.read_document(path.read_bytes())
+    reading = ai.read_document(image)
     doc.case_id = ctx.case.id
     doc.ocr_fields, doc.blur_score, doc.format_ok, doc.confidence = reading.fields, reading.blur_score, reading.format_ok, reading.confidence
     usable = reading.blur_score <= BLUR_RETAKE and reading.format_ok
@@ -238,9 +239,11 @@ def step_ledger_lookup(ctx: Ctx) -> Dict[str, Any]:
         flags.append("claim_contradicts_ledger")
     shortfall = max(PROGRAMME_AMOUNT - received, 0)
     ctx.claim.expected_amount, ctx.claim.received_amount = PROGRAMME_AMOUNT, received
-    ctx.state.update(flags_found=flags, shortfall=shortfall, payment_needed=shortfall > 0 and "claim_contradicts_ledger" not in flags)
-    _audit(ctx, "agent", "ledger_lookup", {"month": month}, {"payments": len(unique), "received": received, "shortfall": shortfall, "flags": flags})
-    return {"payments": unique, "received": received, "shortfall": shortfall, "flags": flags}
+    agents = sorted({str(p.get("agent_id")) for p in unique if p.get("agent_id")})
+    ctx.state.update(flags_found=flags, shortfall=shortfall, agents=agents,
+                     payment_needed=shortfall > 0 and "claim_contradicts_ledger" not in flags)
+    _audit(ctx, "agent", "ledger_lookup", {"month": month}, {"payments": len(unique), "received": received, "shortfall": shortfall, "flags": flags, "agents": agents})
+    return {"payments": unique, "received": received, "shortfall": shortfall, "flags": flags, "agents": agents}
 
 
 def step_match_person(ctx: Ctx) -> Dict[str, Any]:
@@ -284,6 +287,10 @@ def step_decide(ctx: Ctx) -> Dict[str, Any]:
     if mapped["status"] == "needs_more_proof" and not needs:
         needs = list(GENERIC_NEEDS)
     reasons = list(dec.reasons)
+    if "short_payment" in flags:
+        agents = ctx.state.get("agents") or []
+        received = out["ledger_lookup"]["received"]
+        reasons.append("Short payment: received PKR %d of %d%s." % (received, PROGRAMME_AMOUNT, (", paid by %s" % ", ".join(agents)) if agents else ""))
     if ctx.state["payment_needed"]:
         reasons.append("A payment of PKR %d is involved: an officer must approve it." % ctx.state["shortfall"])
     trace = dict(dec.trace, needs=needs, flags=flags, flags_found=ctx.state["flags_found"], payment_needed=ctx.state["payment_needed"],
@@ -413,6 +420,11 @@ def steps_view(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                 detail = "%s (confidence %.2f)" % (o.get("action"), o.get("confidence", 0))
             elif s == "ledger_lookup":
                 detail = "received PKR %s, shortfall PKR %s" % (o.get("received"), o.get("shortfall"))
+            elif s == "identity_lookup":
+                detail = "record found: %s" % (o.get("record") or {}).get("full_name", "")
+            elif s == "match_person":
+                m = o.get("match") or {}
+                detail = "name %s (score %s)" % ("matched" if m.get("match_id") else "did NOT match", m.get("score"))
             elif o.get("skipped"):
                 detail = str(o.get("skipped"))
         elif s == stopped.get("step"):

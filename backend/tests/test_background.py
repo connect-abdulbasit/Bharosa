@@ -161,3 +161,18 @@ def test_a_job_is_taken_by_exactly_one_worker(client, db, mocks):
     db.commit()
     assert jobs._take(db, job.id) is True
     assert jobs._take(db, job.id) is False  # the atomic UPDATE ... WHERE status='queued' lets only one win
+
+
+def test_background_steps_keep_the_request_id_of_the_request_that_queued_them(threaded, mocks, db):
+    """The worker thread has no HTTP request: the job carries the request id so a whole claim is one group in the audit log."""
+    from app.models import AuditLog
+
+    h = dict(auth(threaded, "citizen05"), **{"X-Request-ID": "claim-trace-77"})
+    b = threaded.post("/claims", json=SPEECH, headers=h).json()
+    wait_for(threaded, h, b["claim_id"], lambda p: p["finished"])
+    rows = db.execute(select(AuditLog).where(AuditLog.request_id == "claim-trace-77").order_by(AuditLog.id)).scalars().all()
+    actions = [r.action for r in rows]
+    assert "case.create" in actions and "claim.create" in actions                      # written by the request thread
+    assert {"ai.extract_claim", "agent.identity_lookup", "ai.decide", "agent.notify"} <= set(actions)  # written by the worker thread
+    steps = db.execute(select(AuditLog).where(AuditLog.entity_id == b["case_id"], AuditLog.actor_type.in_(["ai", "agent"]))).scalars().all()
+    assert steps and all(r.request_id == "claim-trace-77" for r in steps)

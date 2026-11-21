@@ -23,7 +23,8 @@ services:
     env_file: [.env.example]
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-bharosa}:${POSTGRES_PASSWORD:-bharosa}@postgres:5432/${POSTGRES_DB:-bharosa}
-      MOCKS_URL: http://mocks:8001
+      # real mocks by default; run the demo scenarios with the built-in fake mocks:  BACKEND_MOCKS_URL= docker compose up
+      MOCKS_URL: ${BACKEND_MOCKS_URL-http://mocks:8001}
       AI_MODE: ${AI_MODE:-stub}
       PIPELINE_MODE: thread
       UPLOAD_DIR: /data/uploads

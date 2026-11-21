@@ -16,7 +16,7 @@ from app.config import settings
 from app.db import session_factory
 from app.models import Case, Claim, Job, User
 from app.models.base import utcnow
-from app.services import pipeline
+from app.services import audit, pipeline
 from app.services import rules as rule_service
 from app.services.mocks_client import get_mocks_client
 
@@ -30,7 +30,7 @@ def enqueue(db: Session, kind: str, claim: Claim, actor_id: str) -> Job:
     existing = db.execute(select(Job).where(Job.claim_id == claim.id, Job.status.in_(ACTIVE))).scalars().first()
     if existing is not None:
         return existing
-    job = Job(kind=kind, claim_id=claim.id, actor_id=actor_id, status="queued")
+    job = Job(kind=kind, claim_id=claim.id, actor_id=actor_id, status="queued", request_id=audit.request_id_var.get())
     db.add(job)
     db.flush()
     return job
@@ -65,6 +65,7 @@ def process_job(job_id: Optional[str] = None) -> bool:
         if not _take(db, job_id):
             return True  # another worker got it
         job = db.get(Job, job_id)
+        token = audit.request_id_var.set(job.request_id)  # the worker thread has no HTTP request: keep the queuing request's id
         try:
             _run(db, job)
             job.status, job.error = "done", None
@@ -73,6 +74,8 @@ def process_job(job_id: Optional[str] = None) -> bool:
             log.exception("job %s crashed", job_id)
             job = db.get(Job, job_id)
             job.status, job.error = ("queued" if job.attempts < MAX_ATTEMPTS else "failed"), str(exc)[:300]
+        finally:
+            audit.request_id_var.reset(token)
         job.finished_at = utcnow()
         db.commit()
         return True

@@ -5,7 +5,7 @@ Read the root `CLAUDE.md` first.
 
 ## Contract
 Endpoints and models: `contracts/openapi-platform.yaml`, `contracts/schemas.py`, example responses `contracts/fixtures/`. Swagger at `/docs` (tagged, with examples and the `X-API-Key` scheme).
-Private (JWT): `/auth/login`, `/me`, `/me/pin`, `/cases`, `/cases/{id}`, `/cases/{id}/assign|escalate|decide|close`, `/claims`, `/claims/{id}`, `/claims/{id}/progress`, `/claims/{id}/resume`, `/messages/check`, `/documents`, `/rules`, `/rules/{id}/versions`, `/consent`, `/consent/{id}/withdraw|correct`, `/audit`, `/queue`, `/helper/families`, `/apikeys`, `/apikeys/{id}/revoke`, `/eval`.
+Private (JWT): `/auth/login`, `/admin/demo/reset|chaos`, `/scam-map`, `/rules/{id}/simulate`, `/documents/{id}/image`, `/me`, `/me/pin`, `/cases`, `/cases/{id}`, `/cases/{id}/assign|escalate|decide|close`, `/claims`, `/claims/{id}`, `/claims/{id}/progress`, `/claims/{id}/resume`, `/messages/check`, `/documents`, `/rules`, `/rules/{id}/versions`, `/consent`, `/consent/{id}/withdraw|correct`, `/audit`, `/queue`, `/helper/families`, `/apikeys`, `/apikeys/{id}/revoke`, `/eval`.
 Public (`X-API-Key` or JWT, read-only, rate limited per key): `GET /public/cases/{id}/status`, `POST /public/messages/check`. Meta: `/health`.
 
 ## Rules
@@ -52,15 +52,24 @@ Conventions:
 - Status changes go through `services/cases.change_status` (validates transitions, audits, emits the event).
 - JSON columns are not change-tracked: assign a NEW (deep-copied) object, never mutate in place.
 - Every router uses `route_class=CompactRoute`; give new routes a tag, a summary and (for bodies) `openapi_examples`.
+- `Pillow` is a runtime dependency (image processing).
 - Tests use a SQLite FILE per test (the worker thread needs its own connections) and `PIPELINE_MODE=inline`; the `mocks` fixture patches `get_mocks_client` in `routers.cases|messages|public` and `services.jobs`.
 - Extra columns beyond the original spec: `users.username`, `users.cnic` (fake), `users.pin_hash`, `api_keys.prefix`, `consent_events.confirmed_by`, `documents.owner_id` (+ nullable `case_id`), `decisions.payment_ref|payment_status|idempotency_key`, table `jobs`.
+
+### Photos, demo, Scam Map, simulation, security walk (latest step)
+- **ID photos** (`routers/documents.py`, `services/images.py|documents.py`): uploads (max 10 MB) are validated with Pillow, EXIF rotation applied then EXIF dropped, shrunk to max 1280 px, re-encoded JPEG q80 (max 2 MB, also a DB CHECK) and stored in Postgres `documents_blob` (bytea, separate from `documents`). `DOCUMENT_DISK_CACHE=1` adds an optional local copy; the database is the source of truth. `GET /documents/{id}/image`: citizen owner, linked helper, officer, admin, auditor; others 404; every view audited; `Cache-Control: private, no-store`.
+- **Demo** (`app/demo.py`, `app/demo_data.py`, `routers/admin.py`, `scripts/run_scenarios.py`, `docs/demo-scenarios.md`): 6 named scenarios (`s1-clean` ... `s6-idown`, user ids `u-demo-1..6`) whose identity/ledger data lives in the **in-process fake mocks** (so the stub AI reliably reaches different outcomes); `POST /admin/demo/reset` (admin, `DEMO_MODE=1`; rules kept unless `include_rules`; audit log never wiped; the reset is audited); `POST /admin/demo/chaos` breaks the fake identity/ledger/payments service. `make demo-reset`, `make demo-scenarios`. `python -m app.seed` seeds the demo layer too (`--no-scenarios` to skip). TODO(Hadi): mirror the 6 people into `/mocks`.
+- **Scam Map** (`services/scam_map.py`): `GET /scam-map` (officer/admin/auditor): counts by area, day, reason; reasons normalised to fixed categories; areas/reasons with < 3 reports folded into `other`; no text/sender/user ids. 60 seeded fake checks.
+- **Rule simulation** (`services/simulate.py`): `POST /rules/{id}/simulate` (admin) re-runs only `ai.decide` on the stored pipeline inputs (claims.data) of the latest AI decision per case under a proposed rule; returns totals, from -> to breakdown, up to 20 examples; read-only except one `rule.simulate` audit row. Seeded sample decisions have no stored inputs and are counted as skipped.
+- **Integration tests**: `tests/integration` (marker `integration`, deselected by default); `make test-integration` runs them with `AI_MODE=real` and they skip until all six real AI functions exist (TODO(Ali)).
+- **Security walk** (`tests/test_security_walk.py`) iterates `app.routes`: every route needs auth (static + runtime), a citizen gets 404/403 for another citizen's ids, an auditor gets 403 on every non-GET, API keys open only `/public`. A new id route must be added to `EXPECT_404`/`EXPECT_403` there.
 
 ## Tasks
 - [x] Everything above.
 - [ ] TODO(Basit): deploy (Render/Railway + Supabase) using `backend/render.yaml` + `DEPLOY.md`; put the URL in the README.
-- [ ] TODO(Basit): object storage for ID photos (local disk is lost on free hosts); per-key quotas beyond rate limits.
-- [ ] TODO(Hadi): `/payments/disburse` in `/mocks` (idempotent); real webhook delivery behind `events.emit`.
-- [ ] TODO(Hani): frontend live mode must treat `POST /claims` as 202 + poll `/claims/{id}/progress`, and read errors from `message`.
+- [ ] TODO(Basit): per-key quotas beyond rate limits; deploy (see above).
+- [ ] TODO(Hadi): `/payments/disburse` in `/mocks` (idempotent); mirror the 6 demo scenario people + `agent-099` into `/mocks`; real webhook delivery behind `events.emit`.
+- [ ] TODO(Hani): frontend live mode must treat `POST /claims` as 202 + poll `/claims/{id}/progress`, read errors from `message`, show ID photos from `image_url`, and can build the Scam Map from `GET /scam-map` (fixture `scam_map.json`) and the Digital Twin from `POST /rules/{id}/simulate`.
 
 ## Run / test
 ```

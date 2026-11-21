@@ -271,6 +271,7 @@ class DocumentResponse(BaseModel):
     explanation_ur: str
     explanation_en: str
     model_version: str
+    image_url: Optional[str] = None  # GET it with the same auth (RBAC like the case)
 
 
 # --------------------------------------------------------------------------- platform: rules
@@ -418,3 +419,52 @@ class LiveEvalResults(BaseModel):
     pipeline: Dict[str, Any]
     messages: Dict[str, Any]
     model_eval: Optional[Dict[str, Any]] = None  # contents of ai/eval/eval_results.json when present
+
+
+# --------------------------------------------------------------------------- Scam Map + rule simulation (additive)
+class ScamMapArea(BaseModel):
+    area: str
+    count: int
+
+
+class ScamMapDay(BaseModel):
+    day: str
+    count: int
+
+
+class ScamMapReason(BaseModel):
+    reason: str
+    count: int
+
+
+class ScamMapResponse(BaseModel):
+    """Counts only: no message text, no user ids. Areas/reasons with fewer than `min_group_size` reports are grouped as 'other'."""
+
+    generated_at: str
+    window_days: int
+    min_group_size: int
+    total: int
+    by_area: List[ScamMapArea]
+    by_day: List[ScamMapDay]
+    by_reason: List[ScamMapReason]
+
+
+class RuleSimulationExample(BaseModel):
+    case_id: str
+    old_action: str
+    new_action: str
+
+
+class RuleSimulation(BaseModel):
+    """POST /rules/{id}/simulate: a proposed rule re-run (decide step only) on the stored inputs of past decisions. Nothing is saved."""
+
+    rule_id: str
+    current_version: int
+    proposed: Dict[str, Any]
+    total_cases: int  # cases with an AI decision
+    simulated_cases: int  # decisions whose stored inputs could be re-run
+    skipped_no_inputs: int  # e.g. seeded sample decisions that have no stored inputs
+    would_change: int
+    by_transition: Dict[str, int] = Field(default_factory=dict)  # "ask_more -> auto_handle": 3
+    examples: List[RuleSimulationExample] = Field(default_factory=list)  # up to 20
+    simulated: bool = True

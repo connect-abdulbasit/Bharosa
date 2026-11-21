@@ -27,6 +27,8 @@ services:
         value: production
       - key: SEED_ON_START            # FAKE demo users/cases for the judges; set to 0 once real data exists
         value: "1"
+      - key: DEMO_MODE                # 1 = admin demo reset + 6 scenarios + fake-mocks outage switches (fine for a judged prototype)
+        value: "1"
       - key: SENTRY_DSN               # optional
         sync: false
       - key: LLM_API_KEY              # only for AI_MODE=real

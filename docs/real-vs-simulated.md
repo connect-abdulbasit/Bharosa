@@ -29,5 +29,6 @@ Every mock response carries `"simulated": true`; the UI shows a "PROTOTYPE - sim
 | Payments | **Simulated money, real safety logic** | no money moves; the idempotency-key logic (one payment per decision) is real. The mock `/payments/disburse` is TODO(Hadi); until then the backend falls back to a `/complaints` ticket |
 | Identity, ledger, SMS, complaints | **Simulated** | `/mocks`, or the in-process fake client when `MOCKS_URL` is empty/unreachable |
 | AI (`AI_MODE=stub`) | **Stub by default** | fixed realistic outputs; the stub claim reader always hears "Mohammad Aslam" |
-| ID photos | **Real files** (synthetic data only) | stored on local disk; lost on free hosting redeploys |
+| ID photos | **Real files** (synthetic data only) | resized and stored in Postgres (`documents_blob`); local disk is only an optional cache |
+| Demo scenarios, Scam Map data | **Seeded fake data** | 6 scenario citizens in the backend's fake mocks, 60 fake scam checks; reset with `POST /admin/demo/reset` |
 | Webhooks | **Not yet** | `events.emit` records events locally; delivery is TODO(Hadi) |

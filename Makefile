@@ -2,7 +2,7 @@
 PY := .venv/bin/python
 export PYTHONPATH := $(CURDIR)
 
-.PHONY: install dev test lint seed migrate db up down
+.PHONY: install dev test test-integration lint seed migrate db up down demo-reset demo-scenarios
 
 install:
 	python3 -m venv .venv
@@ -18,6 +18,15 @@ test:
 	cd ai && ../$(PY) -m pytest -q
 	cd backend && ../$(PY) -m pytest -q
 	cd mocks && ../$(PY) -m pytest -q
+
+test-integration:  ## tests that need the REAL AI (AI_MODE=real); they skip until Ali's functions are implemented
+	cd backend && ../$(PY) -m pytest -q -m integration -rs
+
+demo-reset:  ## restore the known demo state (add ARGS=--rules to also restore rule v1)
+	cd backend && PYTHONPATH=..:../ai ../$(PY) -m app.demo reset $(ARGS)
+
+demo-scenarios:  ## run the 6 demo scenarios over HTTP against a running backend (BASE=http://localhost:8000)
+	$(PY) backend/scripts/run_scenarios.py $(BASE)
 
 lint:
 	$(PY) -m ruff check ai backend mocks contracts

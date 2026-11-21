@@ -15,6 +15,7 @@ dependencies = [
   "python-multipart>=0.0.9",
   "bcrypt>=4.0",
   "slowapi>=0.1.9",
+  "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,8 @@ build-backend = "setuptools.build_meta"
 py-modules = []  # app, not a library: this file only declares dependencies
 
 [tool.pytest.ini_options]
+markers = ["integration: needs the REAL AI package (AI_MODE=real); skipped when it is not implemented yet"]
+addopts = "-m \"not integration\""  # run them with: make test-integration
 pythonpath = [".", "..", "../ai"]
 testpaths = ["tests"]
 

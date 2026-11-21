@@ -14,7 +14,7 @@ MODELS = {
     "rules_list": s.RuleListResponse, "rule_versions": s.RuleVersionsResponse,
     "consent_list": s.ConsentListResponse, "consent_withdraw": s.ConsentRecord,
     "audit_list": s.AuditListResponse, "queue": s.QueueResponse, "helper_families": s.HelperFamiliesResponse,
-    "apikeys": s.ApiKeyListResponse, "eval": s.EvalResults, "eval_live": s.LiveEvalResults,
+    "apikeys": s.ApiKeyListResponse, "eval": s.EvalResults, "eval_live": s.LiveEvalResults, "scam_map": s.ScamMapResponse,
 }
 
 

@@ -43,7 +43,9 @@ ENDPOINTS = [
 IDS = ["%s %s" % (m, p) for m, p, *_ in ENDPOINTS]
 
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 300
+from tests.conftest import make_image  # noqa: E402
+
+PNG = make_image(320, 240)
 
 
 def call(client, method, path, body, headers):

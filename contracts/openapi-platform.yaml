@@ -194,6 +194,50 @@ paths:
             application/json:
               schema:
                 $ref: 'schemas.py#/MessageCheckResponse'
+  /scam-map:
+    get:
+      summary: GET /scam-map (counts only; areas/reasons under 3 reports grouped as other)
+      x-roles: [officer,admin,auditor]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/ScamMapResponse'
+  /rules/{id}/simulate:
+    post:
+      summary: POST /rules/{id}/simulate (what-if on past decisions; saves nothing)
+      x-roles: [admin]
+      x-request-schema: RuleVersionCreate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/RuleSimulation'
+  /documents/{id}/image:
+    get:
+      summary: GET /documents/{id}/image (stored ID photo, JPEG; citizen owner, linked helper, officer, admin, auditor; others 404)
+      x-roles: [any visible]
+      responses:
+        '200':
+          description: image/jpeg
+  /admin/demo/reset:
+    post:
+      summary: POST /admin/demo/reset (DEMO_MODE only; wipes cases, claims, decisions, jobs, photos, checks, consent changes, then reseeds; rules kept unless include_rules)
+      x-roles: [admin]
+      responses:
+        '200':
+          description: OK
+  /admin/demo/chaos:
+    post:
+      summary: POST /admin/demo/chaos (DEMO_MODE only; outage switches of the in-process fake mocks)
+      x-roles: [admin]
+      responses:
+        '200':
+          description: OK
   /messages/check:
     post:
       summary: POST /messages/check

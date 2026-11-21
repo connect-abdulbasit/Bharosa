@@ -4,6 +4,7 @@ import hashlib
 import itertools
 from typing import Any, Dict, List
 
+from app import demo_data
 from app.services.mock_errors import MockUnavailable
 
 SENDERS = ["9090", "9090-SAHARA", "SAHARA-GOV", "9091", "SAHARA-HELP"]
@@ -22,7 +23,26 @@ LEDGER: Dict[str, List[Dict[str, Any]]] = {
     "0000042101004": [{"payment_id": "pay-1004", "amount_pkr": 12000, "date": "2026-09-05", "agent_id": "agent-022", "programme": _PROG}],
     "0000042101005": [{"payment_id": "pay-1005", "amount_pkr": 12000, "date": "2026-10-06", "agent_id": "agent-031", "programme": _PROG}],
 }
+# Demo scenarios (ALL FAKE): the 6 scenario people, so the demo works without the real /mocks service.
+# TODO(Hadi): mirror these 6 people into /mocks so the scenarios also work against the real mocks.
+for _s in demo_data.SCENARIOS:
+    IDENTITY[_s["cnic"]] = dict(_s["identity"])
+    LEDGER[_s["cnic"]] = [dict(p) for p in _s["payments"]]
+
 PAYMENTS: Dict[str, str] = {}  # idempotency key -> payment reference
+# Demo chaos for THIS in-process client (the real mocks have their own Chaos Panel): set via POST /admin/demo/chaos.
+CHAOS: Dict[str, bool] = {"identity_down": False, "ledger_down": False, "payments_down": False}
+
+
+def reset_state() -> None:
+    PAYMENTS.clear()
+    for k in CHAOS:
+        CHAOS[k] = False
+
+
+def _outage(flag: str, what: str) -> None:
+    if CHAOS.get(flag):
+        raise MockUnavailable("%s: service unavailable (simulated outage)" % what)
 _tickets = itertools.count(1)
 
 
@@ -30,11 +50,13 @@ class FakeMocksClient:
     name = "fake"
 
     def identity(self, cnic: str) -> Dict[str, Any]:
+        _outage("identity_down", "GET /identity/%s" % cnic)
         if cnic not in IDENTITY:
             raise MockUnavailable("GET /identity/%s: record not found" % cnic)
         return dict(IDENTITY[cnic], cnic=cnic, simulated=True)
 
     def ledger(self, cnic: str) -> Dict[str, Any]:
+        _outage("ledger_down", "GET /ledger/%s" % cnic)
         if cnic not in LEDGER:
             raise MockUnavailable("GET /ledger/%s: record not found" % cnic)
         return {"cnic": cnic, "payments": [dict(p) for p in LEDGER[cnic]], "simulated": True}
@@ -44,6 +66,7 @@ class FakeMocksClient:
 
     def disburse(self, case_id: str, cnic: str, amount_pkr: int, idempotency_key: str) -> Dict[str, Any]:
         """Idempotent like the real endpoint should be: the same key returns the same reference and pays once."""
+        _outage("payments_down", "POST /payments/disburse")
         dup = idempotency_key in PAYMENTS
         ref = PAYMENTS.setdefault(idempotency_key, "PAY-FAKE-%s" % hashlib.sha1(idempotency_key.encode()).hexdigest()[:8].upper())
         return {"payment_ref": ref, "via": "payments", "duplicate": dup, "simulated": True}

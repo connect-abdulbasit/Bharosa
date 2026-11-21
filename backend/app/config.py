@@ -19,7 +19,13 @@ class Settings:
     JWT_SECRET = _env("JWT_SECRET", "dev-only-change-me-not-for-production-0000")
     JWT_ALGORITHM = "HS256"
     UPLOAD_DIR = Path(_env("UPLOAD_DIR", str(Path(__file__).resolve().parents[1] / "uploads")))
-    MAX_UPLOAD_BYTES = int(_env("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024)))
+    MAX_UPLOAD_BYTES = int(_env("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))  # what a phone camera sends; it is resized below
+    # ID photos are stored in Postgres (documents_blob), after a server-side resize + JPEG re-encode (this also drops EXIF/GPS).
+    DOCUMENT_MAX_SIDE = int(_env("DOCUMENT_MAX_SIDE", "1280"))
+    DOCUMENT_JPEG_QUALITY = int(_env("DOCUMENT_JPEG_QUALITY", "80"))
+    MAX_DOCUMENT_BYTES = int(_env("MAX_DOCUMENT_BYTES", str(2 * 1024 * 1024)))  # stored size cap (also a DB CHECK constraint)
+    DOCUMENT_DISK_CACHE = _env("DOCUMENT_DISK_CACHE", "0") == "1"  # optional local copy in UPLOAD_DIR; the database is the source of truth
+    DEMO_MODE = _env("DEMO_MODE", "1") == "1"  # enables POST /admin/demo/reset and the demo chaos switches. Set 0 for real use
     DEMO_CITIZEN_PIN = _env("DEMO_CITIZEN_PIN", "1234")  # FAKE, prototype only
     # --- background pipeline
     PIPELINE_MODE = _env("PIPELINE_MODE", "thread")  # thread: in-process worker | inline: run inside the request (tests)

@@ -4,6 +4,7 @@ Creates: one user per role, a helper linked to 10 citizens (fake names with spel
 starting 00000), one unlinked citizen, 5 sample cases in different statuses, rule "stipend_short_payment" v1
 (auto >= 0.90, ask_more >= 0.60) and default consents (identity, payments, complaints, notifications).
 Idempotent: does nothing if users already exist (use --reset in development to wipe and reseed).
+`--no-scenarios` skips the demo layer (app/demo.py): 6 named demo scenarios + 60 scam checks for the Scam Map.
 """
 import sys
 from datetime import timedelta
@@ -49,58 +50,68 @@ def cnic(suffix: str) -> str:
     return "0000042101" + suffix  # 13 digits, starts 00000, FAKE
 
 
-def run(db: Session, reset: bool = False) -> Dict[str, int]:
-    if reset:  # development only
-        postgres = db.get_bind().dialect.name == "postgresql"
-        if postgres:  # the audit_log trigger blocks DELETE; switch it off just for this dev reset
-            db.execute(text("ALTER TABLE audit_log DISABLE TRIGGER USER"))
-        for table in reversed(Base.metadata.sorted_tables):
-            db.execute(delete(table))
-        if postgres:
-            db.execute(text("ALTER TABLE audit_log ENABLE TRIGGER USER"))
-        db.commit()
-    if db.query(User).count() > 0:
-        return {"skipped": 1}
+CASES = [
+    # id, citizen, created_by, assigned, status, priority, risk, conf, claim(type, expected, received, month), decision
+    ("case-0001", "u-citizen-2", "u-helper-1", None, "with_officer", "high", 0.72, 0.58, ("short_paid", 12000, 8000, "2026-10"),
+     ("send_to_human", ["Ledger shows PKR 8000 paid, programme amount is PKR 12000", "Name matched with a spelling variant (Mohammad/Muhammad)"])),
+    ("case-0002", "u-citizen-3", "u-citizen-3", "u-officer-1", "needs_more_proof", "normal", 0.35, 0.71, ("missing", 12000, 0, "2026-10"),
+     ("ask_more", ["ID photo slightly blurred"])),
+    ("case-0003", "u-citizen-4", "u-helper-1", "u-officer-1", "approved", "normal", 0.10, 0.93, ("missing", 12000, 0, "2026-09"),
+     ("auto_handle", ["Confidence 0.93 >= 0.90 and no red flags"])),
+    ("case-0004", "u-citizen-1", "u-citizen-1", None, "submitted", "normal", 0.20, 0.0, ("short_paid", 12000, 9000, "2026-10"), None),
+    ("case-0005", "u-citizen-11", "u-citizen-11", "u-officer-1", "closed", "normal", 0.05, 0.95, ("missing", 12000, 0, "2026-08"),
+     ("auto_handle", ["Duplicate resolved"])),
+]
 
+
+def seed_users(db: Session) -> None:
+    """Insert or RESTORE the base users (name, phone, CNIC, PIN). Passwords are only set on insert."""
     pw = settings.DEMO_PASSWORDS
     hashes = {p: hash_password(p) for p in set(pw.values())}
     pin_hash = hash_password(settings.DEMO_CITIZEN_PIN)  # FAKE demo PIN for every seeded citizen
-    for i, (uid, uname, name, role) in enumerate(STAFF, start=1):
-        db.add(User(id=uid, username=uname, name=name, phone="030000000%02d" % i, role=role, password_hash=hashes[pw[role]]))
-    for i, (uid, uname, name, suffix) in enumerate(LINKED + [UNLINKED], start=1):
-        db.add(User(id=uid, username=uname, name=name, phone="031100000%02d" % i, cnic=cnic(suffix), role="citizen",
-                    password_hash=hashes[pw["citizen"]], pin_hash=pin_hash))
+    rows = [(uid, uname, name, "030000000%02d" % i, None, role, hashes[pw[role]], None) for i, (uid, uname, name, role) in enumerate(STAFF, start=1)]
+    rows += [(uid, uname, name, "031100000%02d" % i, cnic(suffix), "citizen", hashes[pw["citizen"]], pin_hash)
+             for i, (uid, uname, name, suffix) in enumerate(LINKED + [UNLINKED], start=1)]
+    for uid, uname, name, phone, cn, role, pwh, pinh in rows:
+        u = db.get(User, uid)
+        if u is None:
+            db.add(User(id=uid, username=uname, name=name, phone=phone, cnic=cn, role=role, password_hash=pwh, pin_hash=pinh))
+        else:
+            u.name, u.phone, u.cnic, u.pin_hash = name, phone, cn, pinh
     db.flush()
 
+
+def seed_families(db: Session) -> None:
     for i, (uid, *_rest) in enumerate(LINKED, start=1):
-        db.add(Family(id="fam-%03d" % i, helper_id="u-helper-1", citizen_id=uid))
-
-    db.add(Rule(id=RULE_ID, name="stipend_short_payment", active_version=1))
+        if db.get(Family, "fam-%03d" % i) is None:
+            db.add(Family(id="fam-%03d" % i, helper_id="u-helper-1", citizen_id=uid))
     db.flush()
-    db.add(RuleVersion(rule_id=RULE_ID, version=1, logic=DEFAULT_LOGIC, thresholds=DEFAULT_THRESHOLDS,
-                       created_by="u-admin-1", note="Initial thresholds: auto >= 0.90, ask_more >= 0.60"))
 
-    for uid in [u[0] for u in LINKED] + [UNLINKED[0]]:
+
+def seed_rule(db: Session) -> None:
+    if db.get(Rule, RULE_ID) is None:
+        db.add(Rule(id=RULE_ID, name="stipend_short_payment", active_version=1))
+        db.flush()
+        db.add(RuleVersion(rule_id=RULE_ID, version=1, logic=DEFAULT_LOGIC, thresholds=DEFAULT_THRESHOLDS,
+                           created_by="u-admin-1", note="Initial thresholds: auto >= 0.90, ask_more >= 0.60"))
+        db.flush()
+
+
+def seed_consents(db: Session, citizen_ids: List[str]) -> None:
+    for uid in citizen_ids:
         for scope in SCOPES:
             cid = "con-%s-%s" % (uid, scope)
-            db.add(Consent(id=cid, citizen_id=uid, scope=scope, granted_to=DEFAULT_RECIPIENT[scope], status="granted"))
-            db.flush()
-            db.add(ConsentEvent(consent_id=cid, action="grant", actor_id=uid, reason="default consent (seed)"))
+            if db.get(Consent, cid) is None:
+                db.add(Consent(id=cid, citizen_id=uid, scope=scope, granted_to=DEFAULT_RECIPIENT[scope], status="granted"))
+                db.flush()
+                db.add(ConsentEvent(consent_id=cid, action="grant", actor_id=uid, reason="default consent (seed)"))
 
+
+def seed_cases(db: Session) -> None:
     now = utcnow()
-    cases = [
-        # id, citizen, created_by, assigned, status, priority, risk, conf, claim(type, expected, received, month), decision
-        ("case-0001", "u-citizen-2", "u-helper-1", None, "with_officer", "high", 0.72, 0.58, ("short_paid", 12000, 8000, "2026-10"),
-         ("send_to_human", ["Ledger shows PKR 8000 paid, programme amount is PKR 12000", "Name matched with a spelling variant (Mohammad/Muhammad)"])),
-        ("case-0002", "u-citizen-3", "u-citizen-3", "u-officer-1", "needs_more_proof", "normal", 0.35, 0.71, ("missing", 12000, 0, "2026-10"),
-         ("ask_more", ["ID photo slightly blurred"])),
-        ("case-0003", "u-citizen-4", "u-helper-1", "u-officer-1", "approved", "normal", 0.10, 0.93, ("missing", 12000, 0, "2026-09"),
-         ("auto_handle", ["Confidence 0.93 >= 0.90 and no red flags"])),
-        ("case-0004", "u-citizen-1", "u-citizen-1", None, "submitted", "normal", 0.20, 0.0, ("short_paid", 12000, 9000, "2026-10"), None),
-        ("case-0005", "u-citizen-11", "u-citizen-11", "u-officer-1", "closed", "normal", 0.05, 0.95, ("missing", 12000, 0, "2026-08"),
-         ("auto_handle", ["Duplicate resolved"])),
-    ]
-    for n, (cid, citizen, by, assigned, status, prio, risk, conf, claim, dec) in enumerate(cases):
+    for n, (cid, citizen, by, assigned, status, prio, risk, conf, claim, dec) in enumerate(CASES):
+        if db.get(Case, cid) is not None:
+            continue
         created = now - timedelta(days=5 - n)
         db.add(Case(id=cid, citizen_id=citizen, created_by=by, assigned_to=assigned, status=status, priority=prio,
                     risk_score=risk, confidence=conf, current_step=status, notes=[], created_at=created, updated_at=created))
@@ -111,9 +122,38 @@ def run(db: Session, reset: bool = False) -> Dict[str, int]:
             db.add(Decision(case_id=cid, action=dec[0], confidence=conf, reasons=dec[1], trace={"seed": True},
                             rule_id=RULE_ID, rule_version=1, model_version="stub-0.1", decided_by="ai"))
     db.flush()
-    audit.log(db, "system", "seed", "seed.run", "system", None, after={"users": 15, "cases": 5, "rule": RULE_ID})
-    db.commit()
-    return {"users": db.query(User).count(), "cases": db.query(Case).count()}
+
+
+def run(db: Session, reset: bool = False, scenarios: bool = False) -> Dict[str, int]:
+    if reset:  # development only
+        postgres = db.get_bind().dialect.name == "postgresql"
+        if postgres:  # the audit_log trigger blocks DELETE; switch it off just for this dev reset
+            db.execute(text("ALTER TABLE audit_log DISABLE TRIGGER USER"))
+        for table in reversed(Base.metadata.sorted_tables):
+            db.execute(delete(table))
+        if postgres:
+            db.execute(text("ALTER TABLE audit_log ENABLE TRIGGER USER"))
+        db.commit()
+    out: Dict[str, int] = {}
+    if db.query(User).count() == 0:
+        seed_users(db)
+        seed_families(db)
+        seed_rule(db)
+        seed_consents(db, [u[0] for u in LINKED] + [UNLINKED[0]])
+        seed_cases(db)
+        audit.log(db, "system", "seed", "seed.run", "system", None, after={"users": 15, "cases": 5, "rule": RULE_ID})
+        db.commit()
+        out.update(users=db.query(User).count(), cases=db.query(Case).count())
+    else:
+        out["skipped"] = 1
+    if scenarios:
+        from app import demo
+
+        if demo.seed_scenarios(db):
+            db.commit()
+            out["scenarios"] = len(demo.SCENARIOS)
+            out["scam_checks"] = demo.SCAM_CHECKS_TOTAL
+    return out
 
 
 def main() -> None:
@@ -121,8 +161,7 @@ def main() -> None:
 
     reset = "--reset" in sys.argv
     with session_factory()() as db:
-        print("seed:", run(db, reset=reset))
-
+        print("seed:", run(db, reset=reset, scenarios="--no-scenarios" not in sys.argv))
 
 
 if __name__ == "__main__":

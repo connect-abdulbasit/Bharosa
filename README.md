@@ -100,6 +100,35 @@ npm run dev                     # http://localhost:3000, fixtures mode by defaul
 | admin | `admin` | `admin-demo-123` |
 | auditor | `auditor` | `auditor-demo-123` |
 
+## Backend: what it guarantees, and how to see each one in under a minute
+Start it: `docker compose up --build` (API + Swagger at http://localhost:8000/docs). Helper for the commands below:
+```bash
+API=http://localhost:8000
+tok() { curl -s $API/auth/login -H 'content-type: application/json' -d "{\"username\":\"$1\",\"password\":\"$2\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'; }
+CIT=$(tok citizen citizen-demo-123); OFF=$(tok officer officer-demo-123); ADM=$(tok admin admin-demo-123); AUD=$(tok auditor auditor-demo-123)
+```
+
+| Guarantee | What it means | See it (about 30 seconds) |
+|---|---|---|
+| **RBAC enforced on the server** | Roles come from the database on every request; ids of other people answer 404; auditors are read-only everywhere. A test walks **every route** to prove it. | `curl -s -o /dev/null -w "%{http_code}\n" $API/queue -H "Authorization: Bearer $CIT"` -> **403** · `curl -s -o /dev/null -w "%{http_code}\n" $API/cases/case-0001 -H "Authorization: Bearer $CIT"` -> **404** (not hers) · `curl -s -o /dev/null -w "%{http_code}\n" -X POST $API/cases -H "Authorization: Bearer $AUD" -H 'content-type: application/json' -d '{"claim_type":"missing","amount_claimed_pkr":1}'` -> **403** |
+| **Append-only audit, enforced in the database** | Every user, AI and agent action is logged. A Postgres trigger refuses UPDATE, DELETE and TRUNCATE on `audit_log`, even for the app itself. | `curl -s "$API/audit?limit=3" -H "Authorization: Bearer $AUD"` · `docker compose exec postgres psql -U bharosa -c "update audit_log set action='x'"` -> **ERROR: audit_log is append-only** |
+| **Consent before every external call** | Identity, payment and notification lookups first check consent. A withdrawn consent stops the step and the attempt is logged. | Demo scenario 5: `make demo-scenarios` (or see [docs/demo-scenarios.md](docs/demo-scenarios.md)) then `curl -s "$API/audit?action=consent.blocked" -H "Authorization: Bearer $ADM"` |
+| **Idempotent payments** | A payment key `case_id:decision_id` is stored before the money call, so a retry or a double click can never pay twice. | `for i in 1 2; do curl -s -o /dev/null -w "%{http_code} " -X POST $API/cases/case-0001/decide -H "Authorization: Bearer $OFF" -H 'content-type: application/json' -d '{"action":"approve","reason":"Ledger shows 8000 of 12000"}'; done` -> **200 409** · `curl -s "$API/audit?action=payment.release" -H "Authorization: Bearer $ADM"` shows **one** payment |
+| **Failures go to an officer, never to an error page** | A slow or broken service, missing consent or a bug pauses the claim, adds a note and returns normally; `resume` continues where it stopped. | Demo scenario 6 (identity service down): `curl -s -X POST $API/admin/demo/chaos -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"identity_down":true}'`, file a claim as `s6-idown`, see `with_officer` + note |
+| **Rules are versioned and live** | An admin publishes a new, validated rule version: active at once, no restart; old decisions keep their version; unsafe rules are refused; a what-if shows the impact first. | `curl -s -X POST $API/rules/rule-stipend-short-payment/simulate -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.99,"ask_more_min":0.6}'` · `curl -s -X POST $API/rules/rule-stipend-short-payment/versions -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.5,"ask_more_min":0.3,"logic":{"if":[true,"auto_handle","auto_handle"]}}'` -> **422 Unsafe rule** |
+
+More: **everything at once** with `make demo-scenarios` (resets, runs the six scenarios over HTTP, prints each outcome; run the backend with `BACKEND_MOCKS_URL= docker compose up`). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
+
+### Demo logins (all fake)
+| Who | Username | Password | Use it for |
+|---|---|---|---|
+| Citizen | `citizen` | `citizen-demo-123` | scam check, claim, consent, "someone else's case is 404" |
+| Helper | `helper` | `helper-demo-123` | files for 16 linked citizens (needs the citizen's PIN `1234` to grant consent for them) |
+| Officer | `officer` | `officer-demo-123` | review queue, decisions (reason required), payments |
+| Admin | `admin` | `admin-demo-123` | rules, simulation, API keys, demo reset and outage switches |
+| Auditor | `auditor` | `auditor-demo-123` | read-only: audit log, cases, scam map, evaluation |
+| Demo scenario 1-6 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown` | `citizen-demo-123` | the six scenarios above |
+
 ## Frontend screens
 Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress). Runs without a backend in `fixtures` mode.
 

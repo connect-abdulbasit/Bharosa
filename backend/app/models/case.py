@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, new_id, utcnow
@@ -96,7 +96,24 @@ class Job(Base):
     actor_id: Mapped[str] = mapped_column(String(36))  # who asked (audit + consent actor)
     status: Mapped[str] = mapped_column(String(10), index=True, default="queued")  # queued | running | done | failed
     attempts: Mapped[int] = mapped_column(Integer, default=0)
+    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # the HTTP request that queued it: audit rows of the run share it
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DocumentBlob(Base):
+    """The ID photo itself (Postgres bytea), kept apart from `documents` so listing documents never loads image bytes.
+    Always the server-side re-encoded JPEG (max 1280 px), never the original upload."""
+
+    __tablename__ = "documents_blob"
+    __table_args__ = (CheckConstraint("size_bytes <= 2097152", name="ck_documents_blob_max_2mb"),)
+
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), primary_key=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    content_type: Mapped[str] = mapped_column(String(30), default="image/jpeg")
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

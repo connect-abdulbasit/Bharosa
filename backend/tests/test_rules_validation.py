@@ -80,3 +80,15 @@ def test_valid_new_version_is_active_immediately_and_old_stays(client):
 
 def test_empty_logic_keeps_the_previous_logic(client):
     assert publish(client, auto_handle_min=0.92).json()["logic"] == DEFAULT_LOGIC
+
+
+def test_omitted_red_flags_are_inherited_but_an_explicit_list_replaces_them(client):
+    """A missing field must never silently drop a safeguard; only an explicit list (even []) changes the flags."""
+    default = client.get(URL, headers=auth(client, "admin")).json()["versions"][0]["red_flags"]
+    assert "short_payment" in default and len(default) >= 4
+    v2 = publish(client, auto_handle_min=0.92).json()                           # red_flags omitted
+    assert v2["red_flags"] == default
+    v3 = publish(client, auto_handle_min=0.93, red_flags=["short_payment"]).json()  # explicit list replaces
+    assert v3["red_flags"] == ["short_payment"]
+    assert publish(client, auto_handle_min=0.94).json()["red_flags"] == ["short_payment"]  # inherits from the NEW active version
+    assert publish(client, auto_handle_min=0.95, red_flags=[]).json()["red_flags"] == []   # explicit empty list is allowed (and visible)

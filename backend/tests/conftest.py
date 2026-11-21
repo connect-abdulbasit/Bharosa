@@ -62,8 +62,11 @@ def _fresh_limits_and_events():
     from app.limiter import limiter
     from app.services import events
 
+    from app.fake_mocks_client import reset_state
+
     limiter.reset()
     events.EMITTED.clear()
+    reset_state()  # fake mocks: payments made + outage switches
     yield
 
 
@@ -144,3 +147,29 @@ def mocks(monkeypatch):
 @pytest.fixture(autouse=True)
 def upload_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "UPLOAD_DIR", tmp_path / "uploads")
+
+
+def make_image(width=640, height=480, fmt="PNG", mode="L", noise=True, exif=None, quality=95):
+    """A REAL image as bytes (the server now decodes and re-encodes uploads). noise=True makes it hard to compress, like a phone photo."""
+    import io
+
+    from PIL import Image
+
+    img = Image.effect_noise((width, height), 60) if noise else Image.new("L", (width, height), 128)
+    if mode != "L":
+        img = img.convert(mode)
+    out = io.BytesIO()
+    kw = {}
+    if fmt == "JPEG":
+        kw["quality"] = quality
+    if exif is not None:
+        kw["exif"] = exif
+    img.save(out, fmt, **kw)
+    return out.getvalue()
+
+
+@pytest.fixture()
+def demo(SessionLocal):
+    """The base seed PLUS the demo layer (6 scenarios, 60 scam checks)."""
+    with SessionLocal() as session:
+        seed.run(session, scenarios=True)
