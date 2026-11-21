@@ -5,9 +5,9 @@ All people, ID numbers (`00000…`), amounts and services are **fake / simulated
 
 ## Before you start
 ```bash
-# Backend with the built-in fake mocks (the scenario people live there):
-BACKEND_MOCKS_URL= docker compose up --build        # or locally: MOCKS_URL= make dev
+docker compose up --build                           # real mocks by default (they serve the same people: contracts/fixtures/demo_people.json)
 make demo-scenarios                                 # resets, then runs all seven over HTTP and prints each outcome
+# also works with the built-in fake mocks (BACKEND_MOCKS_URL= docker compose up) and with AI_MODE=real (default AI period 2026-10)
 ```
 - **Reset any time**: `POST /admin/demo/reset` (admin) or `make demo-reset`. It wipes cases, claims, decisions, jobs, ID photos, checked messages and consent changes, restores the seeded users, and re-seeds. **Rules and their history are kept** unless you pass `{"include_rules": true}` (`make demo-reset ARGS=--rules`). The append-only audit log is never wiped; the reset itself is audited (`demo.reset`).
 - All scenario citizens use the demo citizen password `citizen-demo-123` and are linked to the helper (`helper` / `helper-demo-123`), who can file for them with `on_behalf_of` (user ids `u-demo-1` … `u-demo-7`).
@@ -83,3 +83,17 @@ All scenario data is in [`contracts/fixtures/demo_people.json`](../contracts/fix
 
 ## Login limit while demoing
 `/auth/login` is limited per IP. `LOGIN_RATE_LIMIT` unset means **30/minute while `DEMO_MODE=1`** (so the runner can log in as nine different users without waiting) and **5/minute** once `DEMO_MODE=0`. Set `LOGIN_RATE_LIMIT` to override either.
+
+
+## Verified outcomes (integration run, 22 Nov)
+Real mocks (docker compose), all seven PASS in both modes. With `AI_MODE=real` the citizen says their name first (the real extractor refuses a claim with no name instead of guessing) and confidences differ.
+
+| # | Stub AI | Real AI (offline) |
+|---|---|---|
+| 1 | ask_more 0.81 -> officer approves, PKR 12000 once | ask_more 0.70 -> same |
+| 2 | ask_more 0.81, name variant matched | ask_more 0.70, same |
+| 3 | send_to_human, `short_payment`, PKR 4000 | same |
+| 4 | send_to_human, `duplicate_claim` | same |
+| 5 | blocked at `ledger_lookup`, resume completes | same |
+| 6 | paused at `identity_lookup` (mocks `error_500`), resume completes | same |
+| 7 | auto_handle 0.95, closed | auto_handle 0.97, closed |

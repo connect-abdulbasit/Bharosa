@@ -42,7 +42,7 @@ Digital public infrastructure (identity like NADRA, payments like Raast) works f
 | Digital Twin (bonus, if time) | `services/digital_twin` |
 | AI: scam classifier, name matching, OCR + blur, voice->claim, decide, explain, evaluation | `ai/bharosa_ai/`, `ai/eval/` |
 
-Status: the scaffold, contracts, stubs and tests run today; features are filled in by the owners (see each folder's `CLAUDE.md`).
+Status: **integrated**. AI, backend, mocks, services and the frontend are merged and run together (see Quick start). Every claim above is exercised by the tests, the 7 demo scenarios and the browser walkthrough in `docs/screenshots/`.
 
 ## Architecture
 ```mermaid
@@ -59,7 +59,17 @@ More detail: [docs/architecture.md](docs/architecture.md).
 Combined confidence `>= 0.90` and no red flags -> `auto_handle`; `0.60 to 0.90` -> `ask_more`; below `0.60` or any red flag -> `send_to_human` with case notes. Any payment step always needs officer approval. Errors cost: wrong approval 10, wrong rejection 5, human review 1. See [docs/decision-rule.md](docs/decision-rule.md).
 
 ## Real vs simulated
-See [docs/real-vs-simulated.md](docs/real-vs-simulated.md). Short version: auth, RBAC, consent, audit, rules, DB and AI code are real; the government services, programme, people, CNICs and SMS are simulated and every mock response says `"simulated": true`.
+| Real code, enforced on the server | Simulated or fake |
+|---|---|
+| JWT login, RBAC on every route, row-level access | The "Sahara Relief Programme", code `9090`, all people, CNICs (`00000...`) |
+| Append-only audit log (also a Postgres trigger) | Identity (NADRA-like) and ledger (Raast-like) services: `/mocks` |
+| Consent checked before every external call | Payments: no money moves; the **idempotency + officer-approval logic is real** |
+| Versioned rules, validation, what-if simulation | SMS / notifications, complaints, webhooks delivery targets |
+| Claim agent: background jobs, saved steps, resume | ID photos and voice are synthetic test data |
+| Scam classifier, name matching, decision, explanation | Training / evaluation data (synthetic) |
+| Public API keys, rate limits, error format | Demo accounts and the 7 scenario citizens |
+
+Every mock response carries `"simulated": true`; every page shows the "PROTOTYPE - simulated data" banner. Full list: [docs/real-vs-simulated.md](docs/real-vs-simulated.md).
 
 ## Team and ownership
 | Person | Folder(s) | Owns |
@@ -70,25 +80,29 @@ See [docs/real-vs-simulated.md](docs/real-vs-simulated.md). Short version: auth,
 | Hadi | `/mocks`, `/services`, `/e2e` | Mock services, synthetic data, Chaos Panel backend, notifications, webhooks, Digital Twin, e2e tests, demo |
 | Everyone | `/contracts`, `/docs` | Shared contracts; additive changes only, announced to the team |
 
-## Quick start
-**Prerequisites:** Python 3.9+ (3.11 in Docker), Node 20+, Docker (optional).
+## Quick start (the whole merged system)
+**Prerequisites:** Python 3.9+ (3.11 in Docker), Node 20+, Docker.
 
 ```bash
-cp .env.example .env            # fake values, safe for local use
+cp .env.example .env                     # fake values, safe for local use
 
-# Option A: everything in Docker (postgres + backend + mocks)
-docker compose up --build       # backend :8000 (Swagger /docs), mocks :8001 (/docs)
+# 1. backend + real mocks + Postgres (seeds fake demo data on start)
+docker compose up --build                # backend :8000 (Swagger /docs), mocks :8001 (/docs), postgres
+#    port 5432 busy?   POSTGRES_PORT=55432 docker compose up --build
+#    real AI (offline, no key needed): AI_MODE=real docker compose up --build
 
-# Option B: local Python
-make install                    # creates .venv
-make dev                        # mocks :8001 + backend :8000
+# 2. frontend in live mode (CORS allows http://localhost:3000)
+cd frontend && npm install && npm run sync-contracts
+NEXT_PUBLIC_API_MODE=live NEXT_PUBLIC_API_URL=http://localhost:8000 npm run build && npm run start -- -p 3000
+#    without a backend: npm run dev   (fixtures mode, nothing else needed)
 
-# Frontend (separate)
-cd frontend
-npm install
-npm run sync-contracts
-npm run dev                     # http://localhost:3000, fixtures mode by default
+# 3. prove it works
+make install && make test                # ai + backend + mocks + services
+make demo-scenarios                      # the 7 scenarios over HTTP against the running stack
+PYTHONPATH=.:e2e .venv/bin/python -m pytest e2e -v    # Hadi's end-to-end scenarios (needs the stack, plus services on :8002)
 ```
+Local without Docker: `make install && make dev` (mocks :8001 + backend :8000 with SQLite/Postgres per `.env`).
+Services (notifications, webhooks, Digital Twin) are a separate app: `WEBHOOKS_ALLOW_LOCAL=1 PYTHONPATH=. .venv/bin/python -m uvicorn services.main:app --port 8002`.
 
 **Demo logins** (username = role; fake passwords from `.env.example`):
 
@@ -117,7 +131,7 @@ CIT=$(tok citizen citizen-demo-123); OFF=$(tok officer officer-demo-123); ADM=$(
 | **Failures go to an officer, never to an error page** | A slow or broken service, missing consent or a bug pauses the claim, adds a note and returns normally; `resume` continues where it stopped. | Demo scenario 6 (identity service down): `curl -s -X POST $API/admin/demo/chaos -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"identity_down":true}'`, file a claim as `s6-idown`, see `with_officer` + note |
 | **Rules are versioned and live** | An admin publishes a new, validated rule version: active at once, no restart; old decisions keep their version; unsafe rules are refused; a what-if shows the impact first. | `curl -s -X POST $API/rules/rule-stipend-short-payment/simulate -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.99,"ask_more_min":0.6}'` · `curl -s -X POST $API/rules/rule-stipend-short-payment/versions -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.5,"ask_more_min":0.3,"logic":{"if":[true,"auto_handle","auto_handle"]}}'` -> **422 Unsafe rule** |
 
-More: **everything at once** with `make demo-scenarios` (resets, runs the seven scenarios over HTTP, prints each outcome; run the backend with `BACKEND_MOCKS_URL= docker compose up`; login is limited to `LOGIN_RATE_LIMIT`: unset = 30/minute while `DEMO_MODE=1`, 5/minute otherwise). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
+More: **everything at once** with `make demo-scenarios` (resets, runs the seven scenarios over HTTP, prints each outcome; works with the real mocks and with the built-in fake ones; login is limited to `LOGIN_RATE_LIMIT`: unset = 30/minute while `DEMO_MODE=1`, 5/minute otherwise). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
 
 ### Demo logins (all fake)
 | Who | Username | Password | Use it for |
@@ -130,19 +144,19 @@ More: **everything at once** with `make demo-scenarios` (resets, runs the seven 
 | Demo scenario 1-7 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown`, `s7-autohandle` | `citizen-demo-123` | the seven scenarios (7 = auto-handled payment check) |
 
 ## Frontend screens
-Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress). Runs without a backend in `fixtures` mode.
+Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress, data-saver mode, service worker). Runs without a backend in `fixtures` mode and against the real API in `live` mode. Screenshots of every step: [docs/screenshots/](docs/screenshots/).
 
 | Route | Who | What |
 |---|---|---|
 | `/` | everyone | Landing: pitch, problem, Check / Claim / Control cards, prototype notice |
 | `/login` | everyone | Demo users (fake) or username + password |
-| `/citizen`, `/citizen/check`, `/citizen/claim`, `/citizen/status`, `/citizen/data` | citizen, helper | Home, scam check, voice + photo claim, claim timeline, consent (stub) |
-| `/helper`, `/helper/[familyId]` | helper | Family list; one person's case with "switch person" |
-| `/officer`, `/officer/case/[id]` | officer | Review queue; case detail with confidence, reasons, rule version, trace, decision buttons |
-| `/admin`, `/admin/rules`, `/admin/twin`, `/admin/chaos` | admin | Users and roles; rule editor (stub); Digital Twin; Chaos Panel (stub) |
-| `/auditor`, `/eval` | auditor / officer, admin | Audit log (stub); evaluation (stub) |
+| `/citizen`, `/citizen/check`, `/citizen/claim`, `/citizen/status`, `/citizen/data` | citizen, helper | Home + "Did my payment arrive?", scam check, voice + photo claim (202, live progress, **Try again** after a pause), claim timeline, consent (see / withdraw / share / correct) |
+| `/helper`, `/helper/[familyId]` | helper | Family list; one person's case, PIN consent grant, "switch person" |
+| `/officer`, `/officer/case/[id]` | officer | Review queue; case detail with confidence, reasons, rule version, trace, **ID photo**, decision buttons |
+| `/admin`, `/admin/rules`, `/admin/twin`, `/admin/chaos` | admin | Users, API keys; rule editor + publish; Digital Twin (real `/rules/{id}/simulate`); Chaos Panel (drives the real mocks) |
+| `/auditor`, `/eval` | auditor / officer, admin | Audit log with filters and diffs; evaluation numbers + Scam Map |
 
-Components: `PrototypeBanner`, `PageShell`, `RoleGuard`, `BigIconButton`, `MicButton`, `ReadAloud`, `PhotoCapture`, `StatusTimeline`. Progress is saved per person in IndexedDB (`src/lib/offline.ts`). Details: [frontend/CLAUDE.md](frontend/CLAUDE.md).
+Details: [frontend/CLAUDE.md](frontend/CLAUDE.md).
 
 ## Environment flags
 | Flag | Values | Meaning |
@@ -152,15 +166,44 @@ Components: `PrototypeBanner`, `PageShell`, `RoleGuard`, `BigIconButton`, `MicBu
 | `NEXT_PUBLIC_API_MODE` | `fixtures` / `live` | Frontend uses contract fixtures vs the live backend |
 | `DATABASE_URL` | Postgres URL | Backend database |
 | `JWT_SECRET` | string | JWT signing secret (change in production) |
-| `LLM_API_KEY` | string | Needed only for `AI_MODE=real` |
+| `LLM_API_KEY` | string | Optional. `AI_MODE=real` runs fully offline without it; with a key the LLM only helps claim extraction and explanations |
+| `AI_DEFAULT_PERIOD` | `YYYY-MM` | What "this month" means in claim speech. The demo data is for `2026-10` (compose default) |
+| `CORS_ORIGINS` | comma list | Browser origins the backend accepts (default `http://localhost:3000`) |
 
 ## Testing
 ```bash
-make test                       # ai, backend, mocks
+make test                       # ai, backend, mocks, services
+make test-integration           # AI_MODE=real: the pipeline with the real AI functions (4 tests)
 make lint                       # ruff
+make demo-scenarios             # the 7 scenarios over HTTP (fake or real mocks; stub or real AI)
 cd frontend && npm run lint && npm run build
+PYTHONPATH=.:e2e .venv/bin/python -m pytest e2e -v    # end-to-end, needs the running stack
 ```
-End-to-end scenarios (TODO(Hadi)) are listed in [e2e/README.md](e2e/README.md).
+Last integrated run: ai 657 passed / 9 skipped, backend 461 passed, mocks 47, services 31, integration 4, e2e 12, 7/7 scenarios with stub AI and with real AI, frontend lint + build clean, 19/19 browser walkthrough steps (mobile viewport, live mode). Scenario outcomes: [docs/demo-scenarios.md](docs/demo-scenarios.md). Browser walkthrough script: `e2e/ui/walkthrough.mjs`.
+
+## The 7 demo scenarios
+`make demo-scenarios` resets and runs all seven. Each one reaches a different outcome (login `s1-clean` ... `s7-autohandle`, password `citizen-demo-123`). Same outcomes with the stub AI and with `AI_MODE=real` (confidences differ).
+
+| # | Scenario | Outcome |
+|---|---|---|
+| 1 | Clean approval | `needs_more_proof`, officer approves, PKR 12000 paid once (second approve = 409) |
+| 2 | Misspelled name | name matched as a spelling variant, `needs_more_proof` |
+| 3 | Short payment by `agent-099` | `with_officer`, flag `short_payment`, PKR 4000 top-up |
+| 4 | Duplicate claim, same month | `with_officer`, flag `duplicate_claim` |
+| 5 | Consent withdrawn | ledger step blocked and logged, grant again + resume completes |
+| 6 | Identity service down | paused at `identity_lookup` with a note, service back + resume completes |
+| 7 | Payment check, nothing owed | AI `auto_handle` (0.95 stub / 0.97 real), case `closed`, no payment, no officer |
+
+## Evaluation (synthetic data, `python ai/eval/run_eval.py`, offline)
+| Part | Result |
+|---|---|
+| Scam classifier (n=150) | accuracy 0.953, precision(scam) 1.000, recall(scam) 0.892, dangerous errors 0 |
+| Name matching (n=48) | top-1 0.938, false match 0.042, miss 0.021 |
+| Claim extraction (n=25) | understood 1.00, invented claims 0, refusals correct 1.00 |
+| ID photo check (n=38) | good photos accepted 1.00, bad photos sent for retake 1.00 |
+| Decision (n=1000) | wrong approvals 0, wrong rejections 28, human reviews 411, cost 551 |
+| Auto-handle threshold | 0.90 is the cheapest of the tested thresholds (cost 950 per 1000 cases) |
+Numbers are an upper bound: the data is synthetic. Live numbers from real use are at `GET /eval` and the `/eval` page.
 
 ## Deployment
 - Backend: Render or Railway (build with `backend/Dockerfile` from repo root).
@@ -169,12 +212,19 @@ End-to-end scenarios (TODO(Hadi)) are listed in [e2e/README.md](e2e/README.md).
 
 | Item | Link |
 |---|---|
-| Frontend (deployed) | _TODO: add URL_ |
-| Backend / Swagger | _TODO: add URL_ |
+| Frontend (deployed) | _TODO: add URL_ (Hani, Vercel) |
+| Backend / Swagger | _TODO: add URL_ (Basit, Render + Supabase) |
 | Demo video | _TODO: add URL_ |
 
 ## Known limitations
-_To be filled in honestly as we build._ Currently: the backend is database-backed end to end (claim agent in the background, public API keys, rate limiting, `/eval`), but AI runs in `stub` mode (the stub claim extractor always hears the name "Mohammad Aslam" with confidence 0.81, so most demo claims end in `needs_more_proof` or the officer queue); the mock `/payments/disburse` does not exist yet (the backend falls back to a `/complaints` ticket); ID photos are stored on local disk; webhooks are not delivered yet; nothing is deployed.
+- Everything is synthetic and simulated (see [Real vs simulated](docs/real-vs-simulated.md)); evaluation numbers are on synthetic data and are an upper bound.
+- No LLM key was used in the integration runs: `AI_MODE=real` runs the offline parsers. The real claim extractor needs the person to say their name (it refuses instead of guessing), and OCR needs the optional `./ai[ocr]` engine; without it the photo gets the quality check only.
+- Stub AI always "hears" Mohammad Aslam at 0.81, so stub-mode claims never auto-handle (only the payment-check question can).
+- The Chaos Panel's three switches map onto the mocks' global switches: "identity down" = `error_500`, "payment record down" = `missing_record` (claims pause at the first lookup), "payments rail down" is enforced in the backend payout call.
+- Browser speech recognition is Chrome-only; other browsers get the typed fallback. Notifications are in-app only (no push).
+- Webhook delivery and the notification service live in `/services` and are not wired into the backend's `events.emit`.
+- The login limit is relaxed to 30/minute while `DEMO_MODE=1`; set `DEMO_MODE=0` for real use.
+- Nothing is deployed yet; URLs below are placeholders.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)

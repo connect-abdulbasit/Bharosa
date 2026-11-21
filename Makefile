@@ -18,6 +18,7 @@ test:
 	cd ai && ../$(PY) -m pytest -q
 	cd backend && ../$(PY) -m pytest -q
 	cd mocks && ../$(PY) -m pytest -q
+	$(PY) -m pytest services -q
 
 test-integration:  ## tests that need the REAL AI (AI_MODE=real); they skip until Ali's functions are implemented
 	cd backend && ../$(PY) -m pytest -q -m integration -rs
@@ -29,7 +30,7 @@ demo-scenarios:  ## run the 7 demo scenarios over HTTP (fake or real mocks) agai
 	$(PY) backend/scripts/run_scenarios.py $(BASE)
 
 lint:
-	$(PY) -m ruff check ai backend mocks contracts
+	$(PY) -m ruff check ai backend mocks contracts services e2e
 
 db:  ## start only postgres (host port from POSTGRES_PORT, default 5432)
 	docker compose up -d postgres
