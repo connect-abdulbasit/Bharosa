@@ -91,5 +91,6 @@
   {"full_name": "Naseem Akhtar", "father_name": "Ghulam Nabi", "date_of_birth": "1980-01-01", "district": "Malir", "aliases": ["Mohammad Aslam"], "phone_last4": "0000", "cnic": "0000042101104"},
   {"full_name": "Hameeda Begum", "father_name": "Allah Bakhsh", "date_of_birth": "1980-01-01", "district": "Korangi", "aliases": ["Mohammad Aslam"], "phone_last4": "0000", "cnic": "0000042101105"},
   {"full_name": "Parveen Akhtar", "father_name": "Din Muhammad", "date_of_birth": "1980-01-01", "district": "Karachi West", "aliases": ["Mohammad Aslam"], "phone_last4": "0000", "cnic": "0000042101106"},
-  {"full_name": "Gulshan Bibi", "father_name": "Ali Gohar", "date_of_birth": "1982-05-05", "district": "Karachi Central", "aliases": [], "phone_last4": "0000", "cnic": "0000042101107"}
+  {"full_name": "Gulshan Bibi", "father_name": "Ali Gohar", "date_of_birth": "1982-05-05", "district": "Karachi Central", "aliases": [], "phone_last4": "0000", "cnic": "0000042101107"},
+  {"full_name": "Samina Parveen", "father_name": "Ghulam Rasool", "date_of_birth": "1985-09-17", "district": "Karachi West", "aliases": ["Mohammad Aslam"], "phone_last4": "0000", "cnic": "0000042101108"}
 ]
