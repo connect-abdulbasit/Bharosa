@@ -10,7 +10,7 @@ import { api, errorText } from "@/lib/api";
 import { getSession, useSession } from "@/lib/auth";
 import { submitClaim } from "@/lib/claims";
 import { statusLook } from "@/lib/status";
-import type { CaseSummary, ClaimResponse } from "@/lib/types";
+import type { CaseSummary, ClaimResponse, InAppMessage } from "@/lib/types";
 
 function PaymentCheck() {
   const [busy, setBusy] = useState(false);
@@ -44,6 +44,34 @@ function PaymentCheck() {
         </div>
       )}
     </Card>
+  );
+}
+
+/** In-app messages from the notifications service (Urdu + English), created when a claim changes status. Empty is fine: the card says so. */
+function MyMessages() {
+  const [items, setItems] = useState<InAppMessage[] | null>(null);
+  useEffect(() => {
+    api<{ items: InAppMessage[] }>("GET", "/me/notifications", { token: getSession()?.token })
+      .then((r) => setItems(r.items ?? []))
+      .catch(() => setItems([]));
+  }, []);
+  return (
+    <section aria-labelledby="msgs" className="rise rise-2" data-testid="my-messages">
+      <SectionTitle icon="bell" en="My messages" ur="میرے پیغامات" />
+      {items === null && <Skeleton className="h-20" />}
+      {items && items.length === 0 && (
+        <Card className="text-center text-ink-soft">
+          <p className="font-bold">No messages yet. · <span dir="rtl" lang="ur">ابھی کوئی پیغام نہیں۔</span></p>
+        </Card>
+      )}
+      {items && items.slice(0, 3).map((m) => (
+        <Card key={m.id} className="mb-3 space-y-2">
+          <p className="text-lg font-bold text-heading">{m.text_en}</p>
+          <p dir="rtl" lang="ur" className="text-lg font-bold">{m.text_ur}</p>
+          <ReadAloud ur={m.text_ur ?? undefined} en={m.text_en ?? undefined} />
+        </Card>
+      ))}
+    </section>
   );
 }
 
@@ -102,6 +130,7 @@ export default function CitizenHome() {
             )}
           </section>
 
+          <MyMessages />
           <PaymentCheck />
         </div>
       </div>

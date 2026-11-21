@@ -195,3 +195,5 @@ export function familyCitizenId(f: Pick<Family, "family_id" | "citizen_id">): st
   const n = /(\d+)$/.exec(f.family_id)?.[1];
   return n ? `u-citizen-${parseInt(n, 10)}` : f.family_id;
 }
+
+export type InAppMessage = { id: string; key: string; text_ur?: string | null; text_en?: string | null; at?: number | null; simulated?: boolean };

@@ -18,6 +18,7 @@ import fx_document_upload from "@/fixtures/document_upload.json";
 import fx_helper_families from "@/fixtures/helper_families.json";
 import fx_me from "@/fixtures/me.json";
 import fx_message_check from "@/fixtures/message_check.json";
+import fx_notifications from "@/fixtures/notifications.json";
 import fx_queue from "@/fixtures/queue.json";
 import fx_rule_versions from "@/fixtures/rule_versions.json";
 import fx_rules_list from "@/fixtures/rules_list.json";
@@ -55,6 +56,7 @@ const ROUTES: Route[] = [
   { method: "GET", pattern: new RegExp("^/audit$"), data: fx_audit_list },
   { method: "GET", pattern: new RegExp("^/queue$"), data: fx_queue },
   { method: "GET", pattern: new RegExp("^/helper/families$"), data: fx_helper_families },
+  { method: "GET", pattern: new RegExp("^/me/notifications$"), data: fx_notifications },
   { method: "GET", pattern: new RegExp("^/apikeys$"), data: fx_apikeys },
   { method: "GET", pattern: new RegExp("^/eval$"), data: fx_eval_live },
   { method: "POST", pattern: new RegExp("^/consent$"), data: fx_consent_list.items[0] },

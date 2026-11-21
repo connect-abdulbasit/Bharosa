@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "id": "N-fixture1",
+      "key": "needs_more_proof",
+      "text_ur": "براہ کرم شناختی کارڈ کی صاف تصویر دوبارہ بھیجیں۔",
+      "text_en": "Please send a clear photo of your ID card again.",
+      "at": 1795300000,
+      "simulated": true
+    },
+    {
+      "id": "N-fixture2",
+      "key": "with_officer",
+      "text_ur": "آپ کا کیس افسر کو بھیج دیا گیا ہے۔",
+      "text_en": "Your case was sent to an officer.",
+      "at": 1795290000,
+      "simulated": true
+    }
+  ]
+}

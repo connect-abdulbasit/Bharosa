@@ -233,6 +233,32 @@
       "expect": "closed: the ledger confirms PKR 12000 was paid on 2026-10-05 (agent-017), so nothing is owed; answered automatically (AI auto_handle, no payment, no officer)",
       "expected_status": "closed",
       "expected_action": "auto_handle"
+    },
+    {
+      "n": 8,
+      "key": "live-demo",
+      "title": "Live demo: fresh citizen, no open claim",
+      "username": "demo-live",
+      "user_id": "u-demo-8",
+      "name": "Samina Parveen",
+      "cnic": "0000042101108",
+      "identity": {
+        "full_name": "Samina Parveen",
+        "father_name": "Ghulam Rasool",
+        "date_of_birth": "1985-09-17",
+        "district": "Karachi West",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "needs_more_proof (stub AI confidence 0.81; real AI asks for more proof too). For LIVE use in front of judges: no open October claim, clean identity and ledger, PIN 1234, so it never hits the duplicate rule. Run `make demo-reset` between takes.",
+      "expected_status": "needs_more_proof",
+      "expected_action": "ask_more"
     }
   ]
 }
