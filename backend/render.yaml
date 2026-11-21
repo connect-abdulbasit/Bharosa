@@ -78,7 +78,7 @@ services:
         sync: false
       - key: LLM_MODEL                # the provider's model id (required together with the key)
         sync: false
-      - key: LLM_BASE_URL             # optional, https only; default https://api.x.ai/v1
+      - key: LLM_BASE_URL             # https only. SET IT for your provider (blank = xAI). Gemini: https://generativelanguage.googleapis.com/v1beta/openai
         sync: false
       - key: UPLOAD_DIR               # ID photos. Free plans have no persistent disk: files are lost on redeploy (see DEPLOY.md)
         value: /data/uploads

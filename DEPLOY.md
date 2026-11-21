@@ -57,7 +57,7 @@ The system works without a key: `extract_claim` uses the offline parser, lowers 
 When you have a key: Render > `bharosa-backend` > Environment, set
 - `LLM_API_KEY` = your key
 - `LLM_MODEL` = the provider's model id
-- `LLM_BASE_URL` = only if it is not `https://api.x.ai/v1` (https only)
+- `LLM_BASE_URL` = your provider's OpenAI-compatible URL (https only). **Set it**: blank means xAI. Gemini: `https://generativelanguage.googleapis.com/v1beta/openai` with `LLM_MODEL=gemini-2.5-flash`
 - `AI_MODE` = `real`
 
 Save (Render redeploys) and check `/health`: `extract_claim` now says `real` (and the startup log line "AI startup" says "offline parser + LLM assist").

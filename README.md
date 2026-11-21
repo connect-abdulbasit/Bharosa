@@ -219,7 +219,7 @@ Numbers are an upper bound: the data is synthetic. Live numbers from real use ar
 | Demo video | _TODO: add URL_ |
 
 ## How to enable the LLM
-It is optional and needs **no code change**: set `LLM_API_KEY` and `LLM_MODEL` (and `LLM_BASE_URL` if it is not `https://api.x.ai/v1`) in the backend environment and **restart**. `GET /health` then shows `extract_claim: real` instead of `real_offline_fallback`. `AI_USE_LLM=0` switches it off again. Only claim extraction can use it; the ID photo never leaves the server. Steps for the deployed backend: [DEPLOY.md](DEPLOY.md#5-adding-the-llm-key-later-2-min-no-code-change).
+It is optional and needs **no code change**: set `LLM_API_KEY`, `LLM_MODEL` and **`LLM_BASE_URL` for your provider** in the backend environment and **restart**. Tested with Gemini: `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-2.5-flash` (about 1 s per call; the app waits 8 s, so slower "thinking" models time out). Blank `LLM_BASE_URL` means xAI, and a key sent to the wrong provider is exposed to it. On a rate limit (429) the client retries with a pause, then skips the LLM for 20 s and the offline parser answers. `GET /health` then shows `extract_claim: real` instead of `real_offline_fallback`. `AI_USE_LLM=0` switches it off again. Only claim extraction can use it; the ID photo never leaves the server. Steps for the deployed backend: [DEPLOY.md](DEPLOY.md#5-adding-the-llm-key-later-2-min-no-code-change).
 
 ## Which AI functions are real (no LLM key)
 With `AI_MODE=real` and no key (what the integration runs used; `GET /health` and `/eval` list this, and the backend logs it once at startup):
