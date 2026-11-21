@@ -10,12 +10,12 @@ import type { ChaosLive } from "@/lib/types";
 
 type Key = "identity_down" | "ledger_down" | "payments_down";
 const SWITCHES: { key: Key; icon: IconName; en: string; ur: string; effect: string }[] = [
-  { key: "identity_down", icon: "user", en: "Identity service down", ur: "شناختی سروس بند", effect: "New claims pause with an officer note. No guessing, no 500." },
-  { key: "ledger_down", icon: "list", en: "Payment record down", ur: "ادائیگی ریکارڈ بند", effect: "We cannot see payments, so a person must decide." },
+  { key: "identity_down", icon: "user", en: "Identity service down", ur: "شناختی سروس بند", effect: "New claims pause at the identity step with an officer note. No guessing, no 500." },
+  { key: "ledger_down", icon: "list", en: "Payment record down", ur: "ادائیگی ریکارڈ بند", effect: "Only the payment record is down: identity still works, and the claim pauses at the payment-record step for a person." },
   { key: "payments_down", icon: "send", en: "Payments rail down", ur: "ادائیگی نظام بند", effect: "Approval fails safely (503). Nobody is paid twice on retry." },
 ];
 
-type Health = { status: string; database: string; mocks?: { mode?: string; reachable?: boolean }; ai_mode?: string; worker?: { mode?: string; alive?: boolean }; version?: string };
+type Health = { status: string; database: string; mocks?: { mode?: string; reachable?: boolean }; ai_mode?: string; ai_functions?: Record<string, string>; worker?: { mode?: string; alive?: boolean }; version?: string };
 
 export default function ChaosPage() {
   const [state, setState] = useState<ChaosLive | null>(null);
@@ -69,7 +69,20 @@ export default function ChaosPage() {
     }
   }
 
-  const anyDown = state ? SWITCHES.some((s) => state[s.key]) : false;
+  const on = state ? SWITCHES.filter((s) => state[s.key]) : [];
+  const anyDown = on.length > 0;
+
+  async function resetAll() {
+    setBusy("all");
+    try {
+      const next = await api<ChaosLive>("POST", "/admin/demo/chaos", { body: { identity_down: false, ledger_down: false, payments_down: false }, token: getSession()?.token });
+      setState((s) => ({ ...(s as ChaosLive), ...next }));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <PageShell title="Chaos Panel" urdu="خرابی کا پینل" roles={["admin"]} back={{ href: "/admin", label: "Admin · ایڈمن" }} wide>
@@ -83,6 +96,12 @@ export default function ChaosPage() {
           {!state && !error && <Skeleton className="h-56" />}
           {state && (
             <>
+              <Card className="rise flex flex-wrap items-center justify-between gap-3" aria-live="polite">
+                <p className="font-bold" data-testid="chaos-summary">
+                  {anyDown ? `${on.length} switch${on.length > 1 ? "es" : ""} ON: ${on.map((x) => x.en).join(", ")}` : "All services normal. No switch is on."}
+                </p>
+                <Button variant={anyDown ? "accent" : "ghost"} loading={busy === "all"} disabled={!anyDown} icon="refresh" en="Reset all" ur="سب ری سیٹ کریں" onClick={() => void resetAll()} />
+              </Card>
               {anyDown && <Notice tone="warn" title="Something is switched off right now. Remember to switch it back on." />}
               {SWITCHES.map((s) => {
                 const down = state[s.key];
@@ -121,6 +140,9 @@ export default function ChaosPage() {
                 <li className="flex justify-between"><span>Mocks ({health.mocks?.mode})</span><Badge tone={health.mocks?.reachable ? "ok" : "bad"}>{health.mocks?.reachable ? "reachable" : "down"}</Badge></li>
                 <li className="flex justify-between"><span>Worker ({health.worker?.mode})</span><Badge tone={health.worker?.alive ? "ok" : "bad"}>{health.worker?.alive ? "alive" : "stopped"}</Badge></li>
                 <li className="flex justify-between"><span>AI mode</span><Badge tone="neutral">{health.ai_mode}</Badge></li>
+                {health.ai_functions && Object.entries(health.ai_functions).map(([fn, mode]) => (
+                  <li key={fn} className="flex justify-between gap-2"><span className="text-ink-soft">{fn}</span><Badge tone={mode.includes("fallback") || mode.includes("quality") ? "warn" : "neutral"}>{mode.replace(/_/g, " ")}</Badge></li>
+                ))}
               </ul>
             )}
             <Button variant="ghost" full icon="refresh" en="Refresh" onClick={() => void load()} />
