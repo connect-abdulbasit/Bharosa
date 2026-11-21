@@ -87,9 +87,9 @@ Every mock response carries `"simulated": true`; every page shows the "PROTOTYPE
 cp .env.example .env                     # fake values, safe for local use
 
 # 1. backend + real mocks + Postgres (seeds fake demo data on start)
-docker compose up --build                # backend :8000 (Swagger /docs), mocks :8001 (/docs), postgres
+docker compose up --build                # backend :8000 (Swagger /docs), mocks :8001 (/docs), services :8002, postgres
 #    port 5432 busy?   POSTGRES_PORT=55432 docker compose up --build
-#    real AI (offline, no key needed): AI_MODE=real docker compose up --build
+#    real AI (offline, works without an LLM key): AI_MODE=real docker compose up --build
 
 # 2. frontend in live mode (CORS allows http://localhost:3000)
 cd frontend && npm install && npm run sync-contracts
@@ -98,11 +98,11 @@ NEXT_PUBLIC_API_MODE=live NEXT_PUBLIC_API_URL=http://localhost:8000 npm run buil
 
 # 3. prove it works
 make install && make test                # ai + backend + mocks + services
-make demo-scenarios                      # the 7 scenarios over HTTP against the running stack
+make demo-scenarios                      # the 8 scenarios over HTTP against the running stack
 PYTHONPATH=.:e2e .venv/bin/python -m pytest e2e -v    # Hadi's end-to-end scenarios (needs the stack, plus services on :8002)
 ```
 Local without Docker: `make install && make dev` (mocks :8001 + backend :8000 with SQLite/Postgres per `.env`).
-Services (notifications, webhooks, Digital Twin) are a separate app: `WEBHOOKS_ALLOW_LOCAL=1 PYTHONPATH=. .venv/bin/python -m uvicorn services.main:app --port 8002`.
+Services (notifications, webhooks) run in the compose file; locally: `WEBHOOKS_ALLOW_LOCAL=1 PYTHONPATH=. .venv/bin/python -m uvicorn services.main:app --port 8002`, then start the backend with `NOTIFICATIONS_URL=http://localhost:8002 WEBHOOKS_URL=http://localhost:8002`.
 
 **Demo logins** (username = role; fake passwords from `.env.example`):
 
@@ -131,7 +131,7 @@ CIT=$(tok citizen citizen-demo-123); OFF=$(tok officer officer-demo-123); ADM=$(
 | **Failures go to an officer, never to an error page** | A slow or broken service, missing consent or a bug pauses the claim, adds a note and returns normally; `resume` continues where it stopped. | Demo scenario 6 (identity service down): `curl -s -X POST $API/admin/demo/chaos -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"identity_down":true}'`, file a claim as `s6-idown`, see `with_officer` + note |
 | **Rules are versioned and live** | An admin publishes a new, validated rule version: active at once, no restart; old decisions keep their version; unsafe rules are refused; a what-if shows the impact first. | `curl -s -X POST $API/rules/rule-stipend-short-payment/simulate -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.99,"ask_more_min":0.6}'` · `curl -s -X POST $API/rules/rule-stipend-short-payment/versions -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.5,"ask_more_min":0.3,"logic":{"if":[true,"auto_handle","auto_handle"]}}'` -> **422 Unsafe rule** |
 
-More: **everything at once** with `make demo-scenarios` (resets, runs the seven scenarios over HTTP, prints each outcome; works with the real mocks and with the built-in fake ones; login is limited to `LOGIN_RATE_LIMIT`: unset = 30/minute while `DEMO_MODE=1`, 5/minute otherwise). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
+More: **everything at once** with `make demo-scenarios` (resets, runs the eight scenarios over HTTP, prints each outcome; works with the real mocks and with the built-in fake ones; login is limited to `LOGIN_RATE_LIMIT`: unset = 30/minute while `DEMO_MODE=1`, 5/minute otherwise). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
 
 ### Demo logins (all fake)
 | Who | Username | Password | Use it for |
@@ -141,7 +141,8 @@ More: **everything at once** with `make demo-scenarios` (resets, runs the seven 
 | Officer | `officer` | `officer-demo-123` | review queue, decisions (reason required), payments |
 | Admin | `admin` | `admin-demo-123` | rules, simulation, API keys, demo reset and outage switches |
 | Auditor | `auditor` | `auditor-demo-123` | read-only: audit log, cases, scam map, evaluation |
-| Demo scenario 1-7 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown`, `s7-autohandle` | `citizen-demo-123` | the seven scenarios (7 = auto-handled payment check) |
+| **Live demo citizen** | `demo-live` (Samina Parveen, PIN `1234`) | `citizen-demo-123` | **use this one in front of judges**: no open October claim, so a live claim never hits the duplicate rule (ends `needs_more_proof`) |
+| Demo scenario 1-7 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown`, `s7-autohandle` | `citizen-demo-123` | the scenarios (4 = the duplicate demo, 7 = auto-handled payment check) |
 
 ## Frontend screens
 Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress, data-saver mode, service worker). Runs without a backend in `fixtures` mode and against the real API in `live` mode. Screenshots of every step: [docs/screenshots/](docs/screenshots/).
@@ -175,14 +176,14 @@ Details: [frontend/CLAUDE.md](frontend/CLAUDE.md).
 make test                       # ai, backend, mocks, services
 make test-integration           # AI_MODE=real: the pipeline with the real AI functions (4 tests)
 make lint                       # ruff
-make demo-scenarios             # the 7 scenarios over HTTP (fake or real mocks; stub or real AI)
+make demo-scenarios             # the 8 scenarios over HTTP (fake or real mocks; stub or real AI)
 cd frontend && npm run lint && npm run build
 PYTHONPATH=.:e2e .venv/bin/python -m pytest e2e -v    # end-to-end, needs the running stack
 ```
-Last integrated run: ai 657 passed / 9 skipped, backend 461 passed, mocks 47, services 31, integration 4, e2e 12, 7/7 scenarios with stub AI and with real AI, frontend lint + build clean, 19/19 browser walkthrough steps (mobile viewport, live mode). Scenario outcomes: [docs/demo-scenarios.md](docs/demo-scenarios.md). Browser walkthrough script: `e2e/ui/walkthrough.mjs`.
+Last run (branch `final-fixes`): ai 661 passed / 10 skipped (stub) and 658 / 13 (`AI_MODE=real`), backend 471, mocks 48, services 31, integration 4, e2e 13 of 13 with stub AI **and** with `AI_MODE=real` without a key, 8/8 scenarios both ways, frontend lint + build clean, 25/25 browser walkthrough steps (mobile viewport, live mode). Scenario outcomes: [docs/demo-scenarios.md](docs/demo-scenarios.md). Browser walkthrough: `e2e/ui/walkthrough.mjs`, screenshots in `docs/screenshots/`.
 
-## The 7 demo scenarios
-`make demo-scenarios` resets and runs all seven. Each one reaches a different outcome (login `s1-clean` ... `s7-autohandle`, password `citizen-demo-123`). Same outcomes with the stub AI and with `AI_MODE=real` (confidences differ).
+## The 8 demo scenarios
+`make demo-scenarios` resets and runs all eight. Each one reaches a different outcome (login `s1-clean` ... `s7-autohandle` and `demo-live`, password `citizen-demo-123`). Same outcomes with the stub AI and with `AI_MODE=real` (confidences differ).
 
 | # | Scenario | Outcome |
 |---|---|---|
@@ -193,6 +194,7 @@ Last integrated run: ai 657 passed / 9 skipped, backend 461 passed, mocks 47, se
 | 5 | Consent withdrawn | ledger step blocked and logged, grant again + resume completes |
 | 6 | Identity service down | paused at `identity_lookup` with a note, service back + resume completes |
 | 7 | Payment check, nothing owed | AI `auto_handle` (0.95 stub / 0.97 real), case `closed`, no payment, no officer |
+| 8 | **Live demo citizen** (`demo-live`) | full pipeline, no duplicate flag, `needs_more_proof` (PKR 12000 shortfall for the officer) |
 
 ## Evaluation (synthetic data, `python ai/eval/run_eval.py`, offline)
 | Part | Result |
@@ -216,15 +218,30 @@ Numbers are an upper bound: the data is synthetic. Live numbers from real use ar
 | Backend / Swagger | _TODO: add URL_ (Basit, Render + Supabase) |
 | Demo video | _TODO: add URL_ |
 
+## How to enable the LLM
+It is optional and needs **no code change**: set `LLM_API_KEY` and `LLM_MODEL` (and `LLM_BASE_URL` if it is not `https://api.x.ai/v1`) in the backend environment and **restart**. `GET /health` then shows `extract_claim: real` instead of `real_offline_fallback`. `AI_USE_LLM=0` switches it off again. Only claim extraction can use it; the ID photo never leaves the server. Steps for the deployed backend: [DEPLOY.md](DEPLOY.md#5-adding-the-llm-key-later-2-min-no-code-change).
+
+## Which AI functions are real (no LLM key)
+With `AI_MODE=real` and no key (what the integration runs used; `GET /health` and `/eval` list this, and the backend logs it once at startup):
+
+| Function | Mode | Notes |
+|---|---|---|
+| `classify_message` (scam check) | real, offline | rules + a small text model |
+| `match_person` | real, offline | spelling variants, order swaps, optional father name / date of birth |
+| `extract_claim` | **real, offline fallback** | offline parser; confidence 0.05 lower and the reason `llm_unavailable`; never blocks the pipeline. Needs the speaker's name, otherwise it asks for it |
+| `read_document` | real | quality / blur gate + Tesseract OCR (English + Urdu packs are in the backend Docker image) |
+| `decide`, `explain` | real, offline | rule version thresholds, red flags, Urdu + English templates |
+
 ## Known limitations
 - Everything is synthetic and simulated (see [Real vs simulated](docs/real-vs-simulated.md)); evaluation numbers are on synthetic data and are an upper bound.
-- No LLM key was used in the integration runs: `AI_MODE=real` runs the offline parsers. The real claim extractor needs the person to say their name (it refuses instead of guessing), and OCR needs the optional `./ai[ocr]` engine; without it the photo gets the quality check only.
-- Stub AI always "hears" Mohammad Aslam at 0.81, so stub-mode claims never auto-handle (only the payment-check question can).
-- The Chaos Panel's three switches map onto the mocks' global switches: "identity down" = `error_500`, "payment record down" = `missing_record` (claims pause at the first lookup), "payments rail down" is enforced in the backend payout call.
-- Browser speech recognition is Chrome-only; other browsers get the typed fallback. Notifications are in-app only (no push).
-- Webhook delivery and the notification service live in `/services` and are not wired into the backend's `events.emit`.
+- The LLM path has never been run against a live provider (no key yet); it is tested with fake HTTP only.
+- Stub AI always "hears" Mohammad Aslam at 0.81, so stub-mode claims never auto-handle (only the payment-check question can). Real mode refuses speech without a name instead of guessing.
+- OCR reads clean printed cards (our SPECIMEN samples); a real phone photo of a card will be harder. Without Tesseract installed (local runs without Docker) the photo gets the quality check only.
+- Chaos Panel: "identity down" fails every mocks endpoint (claims pause at the identity step), "payment record down" fails only the ledger (pause at the ledger step), "payments rail down" fails the payout call in the backend.
+- Notifications and webhooks need the services app (in the compose file; `NOTIFICATIONS_URL` / `WEBHOOKS_URL` empty = off). In-app messages are shown on the citizen home page; there is no push channel. Webhook deliveries need a subscriber registered on the services app.
+- Browser speech recognition is Chrome-only; other browsers get the typed fallback.
 - The login limit is relaxed to 30/minute while `DEMO_MODE=1`; set `DEMO_MODE=0` for real use.
-- Nothing is deployed yet; URLs below are placeholders.
+- Nothing is deployed yet; the URLs below are placeholders.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)

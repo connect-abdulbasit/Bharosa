@@ -1,6 +1,6 @@
 # Demo scenarios (backend)
 
-Seven named scenarios, seeded so each one **reliably reaches a different outcome even with the stub AI**. The data (people, identity records, ledger entries, `agent-099`, sender codes, and each scenario's expected result) lives in one shared file: [`contracts/fixtures/demo_people.json`](../contracts/fixtures/demo_people.json).
+Eight named scenarios, seeded so each one **reliably reaches a different outcome even with the stub AI**. The data (people, identity records, ledger entries, `agent-099`, sender codes, and each scenario's expected result) lives in one shared file: [`contracts/fixtures/demo_people.json`](../contracts/fixtures/demo_people.json).
 All people, ID numbers (`00000…`), amounts and services are **fake / simulated**.
 
 ## Before you start
@@ -26,6 +26,7 @@ make demo-scenarios                                 # resets, then runs all seve
 | 5 | Consent withdrawn | `s5-consent` | paused at `ledger_lookup`, blocked + logged | `with_officer` | grant again, **resume** completes |
 | 6 | Identity service down | `s6-idown` | paused at `identity_lookup` | `with_officer` | service back, **resume** completes |
 | 7 | Auto-handled payment check | `s7-autohandle` | **auto_handle** (confidence 0.95), no red flags | `closed` | nothing owed, **no payment, no officer** |
+| 8 | **Live demo citizen** | `demo-live` | ask_more (stub 0.81 / real offline 0.65) | `needs_more_proof` | officer review; for use in front of judges |
 
 ## 1. Clean approval — "Rukhsana Bibi"
 **Shows:** a clean claim is verified end to end, a payment is approved by a person, and it is paid exactly once.
@@ -85,15 +86,22 @@ All scenario data is in [`contracts/fixtures/demo_people.json`](../contracts/fix
 `/auth/login` is limited per IP. `LOGIN_RATE_LIMIT` unset means **30/minute while `DEMO_MODE=1`** (so the runner can log in as nine different users without waiting) and **5/minute** once `DEMO_MODE=0`. Set `LOGIN_RATE_LIMIT` to override either.
 
 
-## Verified outcomes (integration run, 22 Nov)
-Real mocks (docker compose), all seven PASS in both modes. With `AI_MODE=real` the citizen says their name first (the real extractor refuses a claim with no name instead of guessing) and confidences differ.
+## Verified outcomes (final integration run, 22 Nov)
+Real mocks (docker compose), all eight PASS with the stub AI and with `AI_MODE=real` **without an LLM key** (offline parser, reason `llm_unavailable`, confidence 0.05 lower). With real AI the citizen says their name first (the real extractor refuses a claim with no name instead of guessing).
 
-| # | Stub AI | Real AI (offline) |
+| # | Stub AI | Real AI, no key (offline) |
 |---|---|---|
-| 1 | ask_more 0.81 -> officer approves, PKR 12000 once | ask_more 0.70 -> same |
-| 2 | ask_more 0.81, name variant matched | ask_more 0.70, same |
-| 3 | send_to_human, `short_payment`, PKR 4000 | same |
+| 1 | ask_more 0.81 -> officer approves, PKR 12000 once | ask_more 0.65 -> same |
+| 2 | ask_more 0.81, name variant matched | ask_more 0.65, same |
+| 3 | send_to_human, `short_payment`, PKR 4000 | send_to_human 0.55, same flag and top-up |
 | 4 | send_to_human, `duplicate_claim` | same |
 | 5 | blocked at `ledger_lookup`, resume completes | same |
 | 6 | paused at `identity_lookup` (mocks `error_500`), resume completes | same |
 | 7 | auto_handle 0.95, closed | auto_handle 0.97, closed |
+| 8 | ask_more 0.81, all 8 steps, no duplicate flag | ask_more 0.65, same |
+
+## 8. Live demo citizen (`demo-live`) — "Samina Parveen"
+**Shows:** a clean live run in front of judges. This account has **no open October claim**, a clean identity record and an empty ledger, and PIN `1234` (fake) for helper consent grants, so it never hits the duplicate rule of scenario 4.
+1. Log in as `demo-live` (`citizen-demo-123`), Claim: say or type "mera naam Samina Parveen hai. Mujhe is mahine ke paisay nahi mile" (the real extractor needs the name; the stub ignores it).
+2. Result: all 8 steps done, no red flags, shortfall PKR 12000, `needs_more_proof`. The citizen home then shows an Urdu + English message under **My messages**.
+3. Run `make demo-reset` (or Admin > Chaos Panel > Reset demo data) between takes: the next claim is again a first claim. The scenario 4 citizen (`s4-duplicate`) stays as the duplicate demo.

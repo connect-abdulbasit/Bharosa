@@ -31,4 +31,5 @@ Every mock response carries `"simulated": true`; the UI shows a "PROTOTYPE - sim
 | AI (`AI_MODE=stub`) | **Stub by default** | fixed realistic outputs; the stub claim reader always hears "Mohammad Aslam" |
 | ID photos | **Real files** (synthetic data only) | resized and stored in Postgres (`documents_blob`); local disk is only an optional cache |
 | Demo scenarios, Scam Map data | **Seeded fake data** | 7 scenario citizens (`contracts/fixtures/demo_people.json`, served by `/mocks` and by the backend's fake client), 60 fake scam checks; reset with `POST /admin/demo/reset` |
-| Webhooks, notifications, Digital Twin service | **Simulated, separate app** | `/services` (signed webhooks, consent-aware notifications); not wired into `events.emit` yet |
+| Webhooks, notifications | **Simulated targets, real wiring** | `/services` (signed webhooks, consent-aware Urdu/English messages) is called by the backend on every status change when `NOTIFICATIONS_URL` / `WEBHOOKS_URL` are set; a down service never blocks a claim |
+| AI without an LLM key | **Real, offline** | `extract_claim` is an offline parser with `llm_unavailable` and lower confidence; OCR is Tesseract (English + Urdu) in the Docker image |
