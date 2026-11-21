@@ -206,3 +206,20 @@ def test_payment_record_down_pauses_the_claim_at_ledger_lookup(client, demo):
     c = _file_claim_with_outage(client, "ledger_down", "demo-live")
     steps = {s["step"]: s["status"] for s in c["pipeline_steps"]}
     assert c["status"] == "with_officer" and steps["identity_lookup"] == "done" and steps["ledger_lookup"] == "failed"
+
+
+def test_needs_do_not_ask_for_an_id_photo_that_was_already_read(client, demo):
+    """Not sure enough + a readable photo was sent -> ask for details, not for the photo again. No photo -> the generic text."""
+    from tests.conftest import auth, make_image
+
+    speech = {"transcript": "mujhe is mahine ke paisay nahi mile"}
+    h = auth(client, "demo-live")
+    doc = client.post("/documents", files={"file": ("id.jpg", make_image(800, 600, "JPEG"), "image/jpeg")}, headers=h).json()
+    r = client.post("/claims", json=dict(speech, document_id=doc["document_id"]), headers=h)
+    c = client.get("/claims/%s" % r.json()["claim_id"], headers=h).json()
+    needs = c["decision"]["trace"]["needs"]
+    assert {s["step"]: s["status"] for s in c["pipeline_steps"]}["read_document"] == "done" and not doc.get("retake_needed")
+    assert any("more details" in n.lower() for n in needs) and not any("photo" in n.lower() for n in needs)
+    r2 = client.post("/claims", json=speech, headers=auth(client, "s2-spelling"))
+    c2 = client.get("/claims/%s" % r2.json()["claim_id"], headers=auth(client, "s2-spelling")).json()
+    assert any("photo of your ID card" in n for n in c2["decision"]["trace"]["needs"])  # no photo sent: the generic wording stays

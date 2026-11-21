@@ -45,6 +45,14 @@ CLOSED_FOR_DUPLICATES = ("closed", "rejected")
 BLUR_RETAKE = 0.5
 STATUS_FOR = {"ask_more": "needs_more_proof", "send_to_human": "with_officer"}
 GENERIC_NEEDS = ["A clear photo of your ID card, or more details about the missing payment"]
+# when the ID photo WAS sent and could be read, asking for a photo again is wrong: ask for what is really missing
+DETAILS_NEED = ["More details about the missing payment: when you expected it and who usually pays you"]
+
+
+def generic_needs(outputs: Dict[str, Any]) -> List[str]:
+    """What to ask for when the AI is simply not sure enough and no specific need was found."""
+    doc = outputs.get("read_document") or {}
+    return list(DETAILS_NEED if doc.get("usable") else GENERIC_NEEDS)
 
 
 class Terminal(Exception):
@@ -306,7 +314,7 @@ def step_decide(ctx: Ctx) -> Dict[str, Any]:
             needs = ["No payment is on record for %s. If you did not receive it, ask us to file a claim." % ctx.claim.month]
     mapped = map_decision(action, ctx.state["payment_needed"], needs, check=check)
     if mapped["status"] == "needs_more_proof" and not needs:
-        needs = list(GENERIC_NEEDS)
+        needs = generic_needs(out)
     reasons = list(dec.reasons)
     if override:
         reasons.append(override + ".")
