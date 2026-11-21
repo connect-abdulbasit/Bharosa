@@ -3,6 +3,7 @@ import json
 from collections import Counter, defaultdict
 from typing import Any, Dict
 
+import bharosa_ai
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -79,4 +80,5 @@ def evaluation(user=Depends(require_role(Role.officer, Role.admin, Role.auditor)
         "pipeline": {"runs": len(seconds), "average_seconds": _avg(seconds), "max_seconds": round(max(seconds), 3) if seconds else None},
         "messages": {"total": len(msgs), "by_label": dict(Counter(m.label for m in msgs)), "average_confidence": _avg(m.confidence for m in msgs)},
         "model_eval": model_eval,
+        "ai_functions": bharosa_ai.capabilities()["functions"],
     }

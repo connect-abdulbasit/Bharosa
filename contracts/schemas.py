@@ -423,6 +423,7 @@ class LiveEvalResults(BaseModel):
     pipeline: Dict[str, Any]
     messages: Dict[str, Any]
     model_eval: Optional[Dict[str, Any]] = None  # contents of ai/eval/eval_results.json when present
+    ai_functions: Optional[Dict[str, Any]] = None  # per AI function: {mode: stub|real|real_offline_fallback|real_quality_only, why}
 
 
 # --------------------------------------------------------------------------- Scam Map + rule simulation (additive)

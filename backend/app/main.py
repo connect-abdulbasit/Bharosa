@@ -72,6 +72,12 @@ async def lifespan(app: FastAPI):
             log.warning("SENTRY_DSN is set but sentry-sdk is not installed (pip install 'bharosa-backend[monitoring]')")
         except Exception as exc:  # monitoring must never stop the API from starting (e.g. a malformed DSN)
             log.warning("sentry could not be initialised (%s): continuing without it", exc)
+    import bharosa_ai
+
+    caps = bharosa_ai.capabilities()
+    fallbacks = [n for n, f in caps["functions"].items() if f["mode"] not in ("real", "stub")]
+    # ONE clear line: which AI functions are real, which fall back to an offline helper, and why. Adding a key + restart changes it.
+    (log.warning if fallbacks else log.info)("AI startup: %s", bharosa_ai.describe())
     if settings.PIPELINE_MODE == "thread":
         jobs.worker.start()
     yield
@@ -95,6 +101,12 @@ for module in (admin, auth, cases, claims, messages, documents, rules, consent, 
     app.include_router(module.router)
 
 
+def _ai_modes() -> Dict[str, str]:
+    import bharosa_ai
+
+    return {n: f["mode"] for n, f in bharosa_ai.capabilities()["functions"].items()}
+
+
 @app.get("/health", tags=["meta"], summary="Liveness + dependencies")
 @limiter.exempt
 def health(response: Response) -> Dict[str, Any]:
@@ -111,6 +123,6 @@ def health(response: Response) -> Dict[str, Any]:
     if not db_ok:
         response.status_code = 503
     return {"status": "ok" if db_ok and mocks["reachable"] else ("degraded" if db_ok else "down"),
-            "database": "ok" if db_ok else "down", "mocks": mocks, "ai_mode": settings.AI_MODE,
+            "database": "ok" if db_ok else "down", "mocks": mocks, "ai_mode": settings.AI_MODE, "ai_functions": _ai_modes(),
             "worker": {"mode": settings.PIPELINE_MODE, "alive": jobs.worker.alive() if settings.PIPELINE_MODE == "thread" else None},
             "version": settings.APP_VERSION, "environment": settings.ENVIRONMENT, "simulated": True}
