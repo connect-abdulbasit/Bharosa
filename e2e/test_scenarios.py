@@ -58,6 +58,18 @@ def test_3_identity_failure_goes_to_an_officer_then_resumes(api, switch):
 
 
 # 4. Consent withdrawn: the next claim makes NO ledger call, it is logged, and granting again resumes --------------
+def test_3c_payment_record_down_pauses_at_the_ledger_not_at_identity(api):
+    """Chaos Panel "payment record down" = the mocks' ledger-only switch: identity still works, the claim stops at ledger_lookup."""
+    assert api("POST", "/admin/demo/chaos", api.login("admin"), json={"ledger_down": True})[0] == 200
+    try:
+        c = api.claim("demo-live")
+        steps = {x["step"]: x["status"] for x in c["pipeline_steps"]}
+        assert c["status"] == "with_officer" and steps["identity_lookup"] == "done" and steps["ledger_lookup"] == "failed"
+    finally:
+        api("POST", "/admin/demo/chaos", api.login("admin"), json={"ledger_down": False})
+    assert api("GET", "/identity/0000042101108", base=MOCKS)[0] == 200 and api("GET", "/ledger/0000042101108", base=MOCKS)[0] == 200
+
+
 def test_4_withdrawn_payments_consent_blocks_the_ledger_call(api):
     tok = api.login("s1-clean")
     consent = {c["scope"]: c for c in api("GET", "/consent", tok)[1]["items"]}["payments"]

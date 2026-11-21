@@ -15,6 +15,21 @@ SERVICES = os.environ.get("SERVICES_URL", "http://localhost:8002").rstrip("/")
 SERVICE_KEY = os.environ.get("SERVICES_API_KEY", "dev-services-key-not-for-production")
 PASSWORDS = {"admin": "admin-demo-123", "officer": "officer-demo-123", "auditor": "auditor-demo-123", "helper": "helper-demo-123"}
 SAY = {"transcript": "mujhe is mahine ke paisay nahi mile"}
+
+
+def _names():
+    """username -> the name that person says (contracts/fixtures/demo_people.json). The real extractor refuses speech with no name."""
+    import json
+    from pathlib import Path
+
+    try:
+        path = Path(__file__).resolve().parent.parent / "contracts" / "fixtures" / "demo_people.json"
+        return {p["username"]: p["name"] for p in json.loads(path.read_text(encoding="utf-8"))["people"]}
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+NAMES = _names()
 _tokens: dict = {}
 
 
@@ -58,8 +73,11 @@ class Api:
         return _tokens[user]
 
     def claim(self, user, body=SAY):
-        """File a claim as `user` and wait for the background pipeline to settle. Returns the full claim."""
+        """File a claim as `user` and wait for the background pipeline to settle. Returns the full claim.
+        A spoken claim starts with the person's name, so it passes with the stub AI and with AI_MODE=real (offline parser)."""
         tok = self.login(user)
+        if "transcript" in body and user in NAMES:
+            body = dict(body, transcript="mera naam %s hai. %s" % (NAMES[user], body["transcript"]))
         s, b = self("POST", "/claims", tok, json=body)
         assert s == 202, "POST /claims -> %s %s" % (s, b)
         return self.settle(tok, b["claim_id"])
