@@ -18,7 +18,7 @@
       "granted_at": "2026-11-20T09:00:00Z",
       "withdrawn_at": null,
       "shared_with": [
-        "Payment ledger (simulated Raast)"
+        "Payment ledger (simulated)"
       ],
       "purpose": "Check which payments you received"
     },
