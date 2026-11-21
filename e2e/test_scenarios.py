@@ -181,7 +181,7 @@ def test_10_digital_twin_previews_without_publishing(api):
     t.login("admin", "admin-demo-123")
     sims_before = api.audit(action="rule.simulate")["total"]  # the audit log is append-only: it survives resets, so compare
     assert t.seed_history() == 7
-    loose = t.preview("admin", 0.80, 0.60)             # stub AI confidence is 0.81, so 0.80 would auto-handle ask_more cases
+    loose = t.preview("admin", 0.62, 0.55)             # claim confidence is 0.81 (stub) or about 0.65 (real, offline): both would auto-handle at 0.62
     assert loose["less_human_oversight"] >= 1 and loose["verdict"].startswith("REVIEW")
     tight = t.preview("admin", 0.95, 0.85)
     assert tight["more_human_oversight"] >= 1 and tight["less_human_oversight"] == 0 and tight["verdict"].startswith("TIGHTER")
