@@ -25,7 +25,8 @@ def test_roles(client):
     assert client.get("/eval").status_code == 401
 
 
-def test_seeded_counts_and_shape(client):
+def test_seeded_counts_and_shape(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "EVAL_RESULTS_PATH", tmp_path / "none.json")  # a local ai/eval/eval_results.json must not change this test
     b = ev(client).json()
     assert b["decisions"]["ai_total"] == 4 and b["decisions"]["by_action"] == {"send_to_human": 1, "ask_more": 1, "auto_handle": 2}
     assert b["decisions"]["by_rule_version"] == {"rule-stipend-short-payment v1": 4}
