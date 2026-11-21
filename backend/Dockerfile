@@ -8,7 +8,8 @@ COPY backend/pyproject.toml ./backend/pyproject.toml
 RUN pip install --no-cache-dir ./ai "./backend[monitoring]"
 COPY contracts ./contracts
 COPY backend ./backend
-RUN adduser --disabled-password --gecos "" app \
+RUN sed -i 's/\r$//' /app/backend/start.sh \
+ && adduser --disabled-password --gecos "" app \
  && mkdir -p /data/uploads && chown -R app /data /app/backend
 USER app
 WORKDIR /app/backend

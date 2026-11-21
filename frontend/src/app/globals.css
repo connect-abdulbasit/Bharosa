@@ -1,26 +1,330 @@
 @import "tailwindcss";
 
+/* ───────────────────────── Bharosa design system: "warm trust" ─────────────────────────
+   Deep teal (trust) + saffron (warmth) on warm cream. Large type, large targets, calm shadows.
+   Urdu is always shown next to English; Urdu text uses a Naskh face with extra line height. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #fbf6ec;
+  --cream-2: #f4ecda;
+  --surface: #ffffff;
+  --ink: #17302d;
+  --ink-soft: #4a6360;
+  --line: #e4dccb;
+
+  --teal-950: #062f2c;
+  --teal-900: #0a4541;
+  --teal-800: #0d5c56;
+  --teal-700: #0f766e;
+  --teal-600: #148f84;
+  --teal-100: #d6f0ec;
+  --teal-50: #ecf8f6;
+
+  --saffron-600: #d97706;
+  --saffron-500: #f59e0b;
+  --saffron-300: #fcd34d;
+  --saffron-100: #fdf0c8;
+  --saffron-50: #fff8e6;
+
+  --ok-700: #15803d;
+  --ok-100: #dcf5e4;
+  --bad-700: #b42318;
+  --bad-100: #fde4e1;
+  --warn-700: #a15c07;
+  --warn-100: #fdefc9;
+  --info-700: #1d5fa8;
+  --info-100: #e0eefc;
+
+  /* semantic: these swap in dark mode so text/tints stay readable */
+  --heading: #062f2c;
+  --brand: #0f766e;
+  --on-accent: #062f2c;
+  --ok-soft: #dcf5e4;  --ok-ink: #15803d;
+  --bad-soft: #fde4e1; --bad-ink: #b42318;
+  --warn-soft: #fdefc9; --warn-ink: #a15c07;
+  --info-soft: #e0eefc; --info-ink: #1d5fa8;
+  --skeleton-a: #efe7d6; --skeleton-b: #f8f2e6;
+  --placeholder: #94a9a6;
+  --body-glow-1: rgb(245 158 11 / 0.14);
+  --body-glow-2: rgb(15 118 110 / 0.12);
+
+  --radius: 22px;
+  --shadow-sm: 0 1px 2px rgb(23 48 45 / 0.06), 0 2px 8px rgb(23 48 45 / 0.05);
+  --shadow-md: 0 4px 12px rgb(23 48 45 / 0.08), 0 14px 32px rgb(23 48 45 / 0.08);
+  --shadow-glow: 0 6px 16px rgb(15 118 110 / 0.22);
 }
+
+
+/* ── dark mode: set by ThemeToggle / the inline script on <html data-theme="dark"> ── */
+:root[data-theme="dark"] {
+  --cream: #0b1513;
+  --cream-2: #1a2c29;
+  --surface: #12201d;
+  --ink: #e6f2ef;
+  --ink-soft: #9bb4af;
+  --line: #243a36;
+  --teal-50: #0f2b28;
+  --teal-100: #153b37;
+  --saffron-50: #2a2210;
+  --saffron-100: #3a2f12;
+  --heading: #e9f6f3;
+  --brand: #5fd4c8;
+  --ok-soft: #11301f;  --ok-ink: #67e09a;
+  --bad-soft: #3a1613; --bad-ink: #ff9a8f;
+  --warn-soft: #3a2a0c; --warn-ink: #f6c35a;
+  --info-soft: #12294a; --info-ink: #8fc2f7;
+  --skeleton-a: #172825; --skeleton-b: #1f332f;
+  --placeholder: #5f7773;
+  --body-glow-1: rgb(245 158 11 / 0.07);
+  --body-glow-2: rgb(20 143 132 / 0.14);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4), 0 14px 32px rgb(0 0 0 / 0.35);
+  --shadow-glow: 0 10px 30px rgb(15 118 110 / 0.45);
+  color-scheme: dark;
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: var(--cream);
+  --color-cream-2: var(--cream-2);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-teal-950: var(--teal-950);
+  --color-teal-900: var(--teal-900);
+  --color-teal-800: var(--teal-800);
+  --color-teal-700: var(--teal-700);
+  --color-teal-600: var(--teal-600);
+  --color-teal-100: var(--teal-100);
+  --color-teal-50: var(--teal-50);
+  --color-saffron-600: var(--saffron-600);
+  --color-saffron-500: var(--saffron-500);
+  --color-saffron-300: var(--saffron-300);
+  --color-saffron-100: var(--saffron-100);
+  --color-saffron-50: var(--saffron-50);
+  --color-ok-700: var(--ok-700);
+  --color-ok-100: var(--ok-100);
+  --color-heading: var(--heading);
+  --color-brand: var(--brand);
+  --color-on-accent: var(--on-accent);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-ink: var(--bad-ink);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --color-bad-700: var(--bad-700);
+  --color-bad-100: var(--bad-100);
+  --color-warn-700: var(--warn-700);
+  --color-warn-100: var(--warn-100);
+  --color-info-700: var(--info-700);
+  --color-info-100: var(--info-100);
+  --font-sans: var(--font-sans-latin), ui-sans-serif, system-ui, sans-serif;
+  --font-urdu: var(--font-urdu-face), "Noto Nastaliq Urdu", serif;
+  --shadow-card: var(--shadow-sm);
+  --shadow-lift: var(--shadow-md);
+  --radius-card: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
+  transition: background-color 0.25s ease;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1100px 520px at 90% -8%, var(--body-glow-1), transparent 60%),
+    radial-gradient(900px 480px at -10% 0%, var(--body-glow-2), transparent 55%),
+    var(--cream);
+  background-attachment: fixed;
+  transition: color 0.2s ease;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+/* Urdu: Naskh face, taller lines so marks never clip. */
+[lang="ur"] {
+  font-family: var(--font-urdu);
+  line-height: 1.95;
+  font-feature-settings: "liga", "calt";
+}
+
+:focus-visible {
+  outline: 3px solid var(--saffron-500);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+::selection {
+  background: var(--saffron-300);
+  color: var(--teal-950);
+}
+
+/* ── reusable pieces ── */
+/* In a layer so utilities such as bg-teal-950 / bg-saffron-50 / border-bad-700 can override the defaults. */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.card-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--teal-600);
+}
+.card-lift:active {
+  transform: translateY(0) scale(0.995);
+}
+
+/* Gradient + soft dot texture in ONE background so the two never override each other. */
+.hero-gradient {
+  background:
+    radial-gradient(rgb(255 255 255 / 0.12) 1.2px, transparent 1.2px) 0 0 / 18px 18px,
+    radial-gradient(600px 300px at 100% 0%, rgb(245 158 11 / 0.35), transparent 60%),
+    linear-gradient(135deg, var(--teal-900), var(--teal-700) 70%, var(--teal-600));
+}
+
+/* layered so utilities (ps-12, text-lg, ...) can override the defaults */
+@layer components {
+  .input {
+    width: 100%;
+    min-height: 56px;
+    border-radius: 16px;
+    border: 2px solid var(--line);
+    background: var(--surface);
+    padding: 0.7rem 1rem;
+    font-size: 1.1rem;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--teal-700);
+  box-shadow: 0 0 0 4px rgb(15 118 110 / 0.18);
+}
+.input::placeholder {
+  color: var(--placeholder);
+}
+
+/* ── range sliders: themed track, thumb takes the element's text colour (text-teal-600, text-saffron-500) ── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 40px;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 26px;
+  width: 26px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 3px solid var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+input[type="range"]::-moz-range-thumb {
+  height: 22px;
+  width: 22px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 3px solid var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── motion (respects reduced motion) ── */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(180 35 24 / 0.55); }
+  100% { box-shadow: 0 0 0 26px rgb(180 35 24 / 0); }
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+.rise { animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.12s; }
+.rise-3 { animation-delay: 0.19s; }
+.rise-4 { animation-delay: 0.26s; }
+.pulse-ring { animation: pulse-ring 1.3s ease-out infinite; }
+.spin { animation: spin 0.8s linear infinite; }
+.skeleton {
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 40%, var(--skeleton-a) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+}
+
+/* ── data saver: html[data-lite="true"] ── nothing decorative, nothing animated, solid colours */
+html[data-lite="true"] *,
+html[data-lite="true"] *::before,
+html[data-lite="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-lite="true"] body {
+  background: var(--cream);
+}
+html[data-lite="true"] .card,
+html[data-lite="true"] .card-lift:hover {
+  box-shadow: none;
+  transform: none;
+}
+html[data-lite="true"] .hero-gradient {
+  background: var(--teal-800);
+}
+html[data-lite="true"] .skeleton {
+  background: var(--skeleton-a);
 }
