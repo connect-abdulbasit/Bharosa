@@ -22,7 +22,7 @@ def families(user: User = Depends(require_role(Role.helper)), db: Session = Depe
         cases = db.execute(select(Case).where(Case.citizen_id == fam.citizen_id).order_by(Case.updated_at.desc())).scalars().all()
         ident = consent_service.get_consent(db, fam.citizen_id, "identity")
         last = cases[0] if cases else None
-        items.append({"family_id": fam.id, "head_name": citizen.name, "case_count": len(cases),
+        items.append({"family_id": fam.id, "citizen_id": fam.citizen_id, "head_name": citizen.name, "case_count": len(cases),
                       "open_cases": sum(1 for c in cases if c.status != "closed"),
                       "last_action": ("Case %s" % last.status.replace("_", " ")) if last else "No cases yet",
                       "latest_case_status": last.status if last else None,

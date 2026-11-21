@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Claim, Consent, ConsentEvent, Decision, User
+from app.models import Claim, Consent, ConsentEvent, Decision, Document, User
 from app.models import Case
 from app.services.consent import PURPOSE
 
@@ -69,6 +69,9 @@ def case_detail(db: Session, case: Case) -> Dict[str, Any]:
         out["rule_version"] = dec.rule_version
         out["explanation_ur"] = (dec.trace or {}).get("explanation_ur")
         out["explanation_en"] = (dec.trace or {}).get("explanation_en")
+    doc = db.execute(select(Document).where(Document.case_id == case.id).order_by(Document.id.desc())).scalars().first()
+    if doc is not None:
+        out["image_url"] = "/documents/%s/image" % doc.id  # same RBAC as the case (GET it with the same auth)
     claim = latest_claim(db, case.id)
     state = (claim.data or {}).get("pipeline") if claim else None
     if state:
