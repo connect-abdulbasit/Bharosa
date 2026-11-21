@@ -18,6 +18,18 @@ OVERSIGHT = {"send_to_human": 0, "ask_more": 1, "auto_handle": 2}  # higher = le
 DEMO_CITIZENS = ["s1-clean", "s2-spelling", "s3-shortpay", "s4-duplicate", "s5-consent", "s6-idown", "s7-autohandle"]
 PW = "citizen-demo-123"  # FAKE demo password
 SAY, SHORT = {"transcript": "mujhe is mahine ke paisay nahi mile"}, {"transcript": "mujhe paisay kam mile hain"}
+def _names() -> Dict[str, str]:
+    """username -> the name that person says (contracts/fixtures/demo_people.json); {} when the file is not there."""
+    from pathlib import Path
+
+    try:
+        path = Path(__file__).resolve().parent.parent.parent / "contracts" / "fixtures" / "demo_people.json"
+        return {p["username"]: p["name"] for p in json.loads(path.read_text(encoding="utf-8"))["people"]}
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+NAMES = _names()
 BODY = {"s3-shortpay": SHORT, "s7-autohandle": {"intent": "payment_check", "month": "2026-10"}}  # the others: "nothing was paid"
 
 # Scam wave: (sender, text, truth). Official sender is the fictional short code 9090; the rest are lookalikes/unknown.
@@ -87,6 +99,8 @@ class Twin:
         for user in DEMO_CITIZENS:
             self.login(user, PW)
             body = BODY.get(user, SAY)
+            if "transcript" in body and user in NAMES:  # the real extractor refuses speech without a name; the stub ignores it
+                body = dict(body, transcript="mera naam %s hai. %s" % (NAMES[user], body["transcript"]))
             try:
                 claim = self.call("POST", "/claims", user, json=body)
             except RuntimeError:
