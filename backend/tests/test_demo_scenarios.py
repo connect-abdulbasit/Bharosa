@@ -160,7 +160,10 @@ def test_chaos_panel_is_forwarded_to_the_real_mocks(monkeypatch):
     monkeypatch.setattr(mocks_client, "_reachable", lambda url: True)
     monkeypatch.setattr(mocks_client.httpx, "post", lambda url, **kw: sent.append((url, kw["json"])) or type("R", (), {"raise_for_status": lambda s: None})())
     mocks_client.push_real_chaos({"identity_down": True, "ledger_down": False, "payments_down": False})
-    assert sent == [("http://mocks.test/chaos", {"error_500": True, "missing_record": False})]
+    assert sent == [("http://mocks.test/chaos", {"error_500": True, "ledger_down": False})]
+    sent.clear()
+    mocks_client.push_real_chaos({"identity_down": False, "ledger_down": True, "payments_down": False})
+    assert sent == [("http://mocks.test/chaos", {"error_500": False, "ledger_down": True})]  # ledger only: identity keeps working
 
 
 def test_demo_live_citizen_has_no_open_claim_and_a_clean_pipeline(client, demo):
@@ -178,3 +181,28 @@ def test_demo_live_citizen_has_no_open_claim_and_a_clean_pipeline(client, demo):
     with session_factory()() as db:
         u = db.query(User).filter(User.username == "demo-live").one()
         assert u.name == "Samina Parveen" and verify_password("1234", u.pin_hash)  # fake PIN for helper consent grants
+
+
+def _file_claim_with_outage(client, flag, user):
+    from tests.conftest import auth
+
+    assert client.post("/admin/demo/chaos", json={flag: True}, headers=auth(client, "admin")).status_code == 200
+    try:
+        r = client.post("/claims", json={"transcript": "mujhe is mahine ke paisay nahi mile"}, headers=auth(client, user))
+        assert r.status_code == 202
+        return client.get("/claims/%s" % r.json()["claim_id"], headers=auth(client, user)).json()
+    finally:
+        client.post("/admin/demo/chaos", json={flag: False}, headers=auth(client, "admin"))
+
+
+def test_identity_down_pauses_the_claim_at_identity_lookup(client, demo):
+    c = _file_claim_with_outage(client, "identity_down", "s6-idown")
+    steps = {s["step"]: s["status"] for s in c["pipeline_steps"]}
+    assert c["status"] == "with_officer" and steps["identity_lookup"] == "failed" and steps["ledger_lookup"] != "done"
+
+
+def test_payment_record_down_pauses_the_claim_at_ledger_lookup(client, demo):
+    """"Payment record down" = ledger only: the identity step still succeeds, the claim stops at ledger_lookup."""
+    c = _file_claim_with_outage(client, "ledger_down", "demo-live")
+    steps = {s["step"]: s["status"] for s in c["pipeline_steps"]}
+    assert c["status"] == "with_officer" and steps["identity_lookup"] == "done" and steps["ledger_lookup"] == "failed"

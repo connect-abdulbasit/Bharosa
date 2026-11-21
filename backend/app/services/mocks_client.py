@@ -105,13 +105,14 @@ def mocks_status() -> dict:
 
 def push_real_chaos(flags: dict) -> None:
     """Chaos Panel -> the REAL mocks service (no-op with the fake client, which reads the flags itself).
-    identity_down -> error_500, ledger_down -> missing_record (the mocks' switches are global, so the claim pauses at the first lookup)."""
+    identity_down -> error_500 (every mocks endpoint fails, so the claim pauses at identity_lookup, the first call);
+    ledger_down -> the mocks' ledger-only switch (identity keeps working, so the claim pauses at ledger_lookup)."""
     if not settings.MOCKS_URL or not _reachable(settings.MOCKS_URL):
         return
     import os
     headers = {"X-Chaos-Token": os.environ["MOCKS_CHAOS_TOKEN"]} if os.environ.get("MOCKS_CHAOS_TOKEN") else {}
     try:
         httpx.post(settings.MOCKS_URL.rstrip("/") + "/chaos", timeout=3.0, headers=headers,
-                   json={"error_500": bool(flags.get("identity_down")), "missing_record": bool(flags.get("ledger_down"))}).raise_for_status()
+                   json={"error_500": bool(flags.get("identity_down")), "ledger_down": bool(flags.get("ledger_down"))}).raise_for_status()
     except (httpx.HTTPError, ValueError) as exc:
         log.warning("could not forward chaos to the real mocks: %s", exc)
