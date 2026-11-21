@@ -7,7 +7,8 @@ import { Icon, type IconName } from "@/components/Icon";
 import { Button, Card, Meter, Notice, SectionTitle, Spinner } from "@/components/ui";
 import { errorText } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { submitClaim } from "@/lib/claims";
+import { followClaim, submitClaim } from "@/lib/claims";
+import { api } from "@/lib/api";
 import { clearProgress, loadProgress, saveProgress } from "@/lib/offline";
 import type { ClaimProgress, ClaimResponse, DocumentResult } from "@/lib/types";
 import { LinkButton } from "@/components/ui";
@@ -60,7 +61,9 @@ function AgentProgress({ p }: { p: ClaimProgress | null }) {
   );
 }
 
-export function ClaimResult({ r, statusHref }: { r: ClaimResponse; statusHref: string }) {
+export function ClaimResult({ r, statusHref, onResume, resuming }: { r: ClaimResponse; statusHref: string; onResume?: () => void; resuming?: boolean }) {
+  // A mock-service failure or withdrawn consent pauses the claim at a failed step (saved, with an officer note). Offer "try again" (resume).
+  const paused = (r.pipeline_steps ?? []).some((s) => s.status === "failed");
   const act = ACTION_TEXT[r.decision?.action] ?? ACTION_TEXT.send_to_human;
   const conf = r.decision?.confidence ?? 0;
   return (
@@ -88,6 +91,9 @@ export function ClaimResult({ r, statusHref }: { r: ClaimResponse; statusHref: s
         {r.decision?.reasons?.length > 0 && <ul className="list-disc space-y-1 ps-6 text-ink-soft">{r.decision.reasons.map((x) => <li key={x}>{x}</li>)}</ul>}
         <ReadAloud ur={`${act.ur} ${r.explanation_ur}`} en={`${act.en} ${r.explanation_en}`} />
       </Card>
+      {paused && onResume && (
+        <Button variant="accent" size="lg" full loading={resuming} icon="refresh" en="Try again" ur="دوبارہ کوشش کریں" onClick={onResume} />
+      )}
       <LinkButton href={statusHref} full size="lg" icon="clock" en="Where is my claim?" ur="میرا دعویٰ کہاں ہے؟" />
     </div>
   );
@@ -145,7 +151,24 @@ export function ClaimFlow({ personId, onBehalfOf, statusHref }: { personId: stri
     }
   }
 
-  if (result) return <ClaimResult r={result} statusHref={statusHref} />;
+  async function resume() {
+    if (!result) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = getSession()?.token;
+      await api("POST", `/claims/${result.claim_id}/resume`, { token });
+      setProgress(null);
+      setResult(await followClaim(result.claim_id, token, setProgress));
+    } catch (e) {
+      setError(errorText(e, "Could not try again. Your claim is safe with an officer."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (busy && result) return <AgentProgress p={progress} />;
+  if (result) return <><ClaimResult r={result} statusHref={statusHref} onResume={() => void resume()} />{error && <Notice tone="bad">{error}</Notice>}</>;
   if (busy) return <AgentProgress p={progress} />;
 
   const step = !draft.transcript ? 1 : !draft.photo ? 2 : 3;
