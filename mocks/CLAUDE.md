@@ -9,7 +9,7 @@ Read the root `CLAUDE.md` first.
 - `POST /complaints` -> `{ticket_id}`
 - `GET /senders` -> `{senders: [official codes]}`
 - `POST /notify` -> `{message_id}`
-- `GET /chaos`, `POST /chaos`, `POST /chaos/reset`
+- `GET /chaos`, `POST /chaos`, `POST /chaos/reset` (switch `ledger_down`: only `GET /ledger/{cnic}` answers 503, identity keeps working)
 - **Every response includes `"simulated": true`**, including errors.
 
 ## Rules

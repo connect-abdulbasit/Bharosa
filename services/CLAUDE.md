@@ -15,7 +15,7 @@ Read the root `CLAUDE.md` first.
 
 ## Tasks
 - [x] `notifications/`: templates (ur/en), retry, consent-aware (default deny).
-- [x] `webhooks/`: subscription, HMAC signatures, retry/backoff, delivery log. TODO(Hadi): backend `events.emit()` must POST to `/events` (Basit's file).
+- [x] `webhooks/`: subscription, HMAC signatures, retry/backoff, delivery log. The backend's `events.emit()` now POSTs every event to `/events` (when `WEBHOOKS_URL` is set), and calls `/notifications/consent` + `/notifications/send` (lang `both`) on status changes (when `NOTIFICATIONS_URL` is set and the citizen's notifications consent is granted). `services/Dockerfile` + the compose file run it. Register a webhook subscriber via `POST /webhooks/subscriptions` to see signed deliveries.
 - [x] `digital_twin/`: rule preview (read-only), synthetic history, scam wave, JSON report. See its README.
 
 ## Run / test

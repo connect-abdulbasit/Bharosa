@@ -70,6 +70,11 @@ Conventions:
 - **Integration tests**: `tests/integration` (marker `integration`, deselected by default); `make test-integration` runs them with `AI_MODE=real` and they skip until all six real AI functions exist (TODO(Ali)).
 - **Security walk** (`tests/test_security_walk.py`) iterates `app.routes`: every route needs auth (static + runtime), a citizen gets 404/403 for another citizen's ids, an auditor gets 403 on every non-GET, API keys open only `/public`. A new id route must be added to `EXPECT_404`/`EXPECT_403` there.
 
+### Services app, AI report, live demo citizen (final)
+- `services/outbound.py`: when `NOTIFICATIONS_URL` / `WEBHOOKS_URL` are set, `events.emit` forwards every event to the services app and, for `case.status_changed` with the citizen's `notifications` consent granted, queues an Urdu + English in-app message (background pool; `PIPELINE_MODE=inline` runs it inline for tests). Any failure is logged, never raised. `GET /me/notifications` (citizen/helper) proxies the caller's own inbox. Tests: `tests/test_outbound_services.py`.
+- Startup logs one line `AI startup: ...` (warning when any function is an offline fallback); `/health` has `ai_functions`, `/eval` has `ai_functions` with the reason.
+- `demo-live` (`u-demo-8`, scenario 8) is the account for live demos: no open claim, PIN 1234. Chaos: `identity_down` -> mocks `error_500`, `ledger_down` -> mocks `ledger_down` (ledger only), `payments_down` -> backend payout call.
+
 ## Tasks
 - [x] Everything above.
 - [ ] TODO(Basit): deploy (Render/Railway + Supabase) using `backend/render.yaml` + `DEPLOY.md`; put the URL in the README.
