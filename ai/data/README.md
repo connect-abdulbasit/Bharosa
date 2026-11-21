@@ -1,1 +1,7 @@
-Synthetic training/eval data only. No real messages, names or CNICs. TODO(Ali): add scam/genuine messages (Urdu, Roman Urdu, English), name-variant pairs, sample ID images.
+Synthetic evaluation data only. No real messages, names, CNICs or ID photos.
+
+- `cases.py`: 150 scam / genuine / unsure messages (English, Roman Urdu, Urdu script, including genuine notices that mention fees, PINs and OTPs as warnings), 48 name pairs (spelling variants, swapped order, initials, honorifics, Urdu script, look-alike negatives), 25 voice transcripts and 7 natural-speech transcripts (used only by `eval/run_eval.py --llm`), each tagged `hard` where the rules are expected to struggle. `split_of(key)` splits train / val / test by a hash of the case id.
+- `decision_cases.py`: 50 hand-labelled end-to-end scenarios (transcript, evidence flags, expected action) run through the real `extract_claim`, `match_person` and `decide` by `eval/run_eval.py` and `tests/test_eval.py`.
+- `make_images.py`: deterministic fake ID-card photos (invented name, fake CNIC starting `00000`, noise instead of a face). `make_card` has controllable blur, brightness and contrast (blur-gate calibration); `make_cnic_card` is an OCR-friendly layout with labelled CNIC, name, father name and date of birth. Used by `tests/test_document*.py`, `tests/test_eval.py` and `eval/run_eval.py`; nothing is committed as an image.
+
+The cases are written by the author of the rules, so scores computed on them are an upper bound. The scam text model (`bharosa_ai/classify_ml_weights.py`) is trained on `MESSAGES`: change that list and rerun `python ai/eval/train_classifier.py`. Run `python ai/eval/run_eval.py` (see `ai/CLAUDE.md`).

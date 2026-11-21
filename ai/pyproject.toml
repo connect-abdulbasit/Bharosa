@@ -3,10 +3,12 @@ name = "bharosa-ai"
 version = "0.1.0"
 description = "Bharosa AI functions (classifier, matching, OCR, extraction, decide, explain)"
 requires-python = ">=3.9"
-dependencies = ["pydantic>=2.5"]
+dependencies = ["pydantic>=2.5", "Pillow>=10.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "ruff>=0.4"]
+ocr = ["rapidocr-onnxruntime>=1.3", "pytesseract>=0.3"]  # optional local OCR for the ID photo: either engine works (pytesseract also needs the Tesseract binary)
+ml = ["scikit-learn>=1.3"]  # only for eval/compare_ml.py (the TF-IDF + logistic regression comparison); never imported by bharosa_ai
 
 [build-system]
 requires = ["setuptools>=68"]

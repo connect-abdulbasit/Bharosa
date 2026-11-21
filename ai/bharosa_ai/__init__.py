@@ -1,8 +1,8 @@
 """Bharosa AI package. Exports the six contract functions.
 
 AI_MODE=stub (default) -> fixed realistic outputs from stubs.py
-AI_MODE=real           -> the real implementations (TODO(Ali)); any function still
-                          unimplemented raises NotImplementedError.
+AI_MODE=real           -> the real implementations: classify.py (+ classify_ml.py), matching.py, extract.py
+                          (+ llm.py), document.py (+ ocr.py, idcard.py), decide.py, explain.py. All six exist.
 """
 import os
 
