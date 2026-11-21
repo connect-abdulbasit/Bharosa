@@ -13,7 +13,7 @@ from app.fake_mocks_client import CHAOS
 from app.models import User
 from app.routing import CompactRoute
 from app.services import audit
-from app.services.mocks_client import mocks_status
+from app.services.mocks_client import mocks_status, push_real_chaos
 from contracts.enums import Role
 
 router = APIRouter(prefix="/admin/demo", tags=["admin"], route_class=CompactRoute)
@@ -45,19 +45,20 @@ def reset_demo(body: ResetRequest = Body(ResetRequest(), openapi_examples={"defa
     return demo.reset(db, user, include_rules=body.include_rules)
 
 
-@router.get("/chaos", summary="Outage switches of the in-process fake mocks")
+@router.get("/chaos", summary="Outage switches (fake mocks, and the real mocks service when it is in use)")
 def get_chaos(user: User = Depends(require_role(Role.admin))):
     _need_demo_mode()
-    return dict(CHAOS, mocks=mocks_status(), note="These switches only affect the in-process fake mocks. With real mocks use their Chaos Panel (POST /chaos).")
+    return dict(CHAOS, mocks=mocks_status(), note="With the real mocks: identity_down -> mocks error_500, ledger_down -> mocks missing_record, payments_down -> payout calls fail in the backend.")
 
 
-@router.post("/chaos", summary="Break or fix the fake identity / ledger / payments service (demo scenario 6)")
+@router.post("/chaos", summary="Break or fix the identity / ledger / payments service (demo scenario 6; forwarded to the real mocks when in use)")
 def set_chaos(body: ChaosRequest = Body(..., openapi_examples={"identity_down": {"summary": "Identity service down", "value": {"identity_down": True}}}),
               user: User = Depends(require_role(Role.admin)), db: Session = Depends(get_db)):
     _need_demo_mode()
     before = dict(CHAOS)
     for k, v in body.model_dump(exclude_none=True).items():
         CHAOS[k] = v
+    push_real_chaos(CHAOS)
     audit.log(db, "user", user.id, "demo.chaos", "system", None, before=before, after=dict(CHAOS))
     db.commit()
     return dict(CHAOS, mocks=mocks_status())

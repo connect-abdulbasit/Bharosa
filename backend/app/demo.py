@@ -125,6 +125,10 @@ def reset(db: Session, actor: User, include_rules: bool = False) -> Dict[str, An
     from app.fake_mocks_client import reset_state
 
     reset_state()  # fake mocks: payments made + chaos switches
+    from app.fake_mocks_client import CHAOS
+    from app.services.mocks_client import push_real_chaos
+
+    push_real_chaos(CHAOS)  # the real mocks service: switch every outage off too
     events.EMITTED.clear()
     seeded = {"cases": db.query(Case).count(), "consents": db.query(Consent).count(), "scenarios": len(SCENARIOS),
               "scam_checks": db.query(CheckedMessage).count()}

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 import httpx
 
 from app.config import settings
-from app.fake_mocks_client import FakeMocksClient
+from app.fake_mocks_client import FakeMocksClient, _outage
 from app.services.mock_errors import MockUnavailable
 
 log = logging.getLogger("bharosa.mocks")
@@ -49,6 +49,7 @@ class MocksClient:
         """Pay out through POST /payments/disburse. The mocks service may not have that endpoint yet
         (TODO(Hadi)): on 404 fall back to the /complaints top-up ticket, which is what we used before.
         The same idempotency_key must never pay twice (the endpoint is expected to honour it)."""
+        _outage("payments_down", "POST /payments/disburse")  # Chaos Panel: the mocks have no payout-only switch, so it is enforced here
         try:
             r = httpx.post(self.base_url + "/payments/disburse", timeout=self.timeout, headers={"Idempotency-Key": idempotency_key},
                            json={"case_id": case_id, "cnic": cnic, "amount_pkr": amount_pkr, "idempotency_key": idempotency_key})
@@ -100,3 +101,17 @@ def mocks_status() -> dict:
         return {"mode": "fake", "reachable": True}
     ok = _reachable(settings.MOCKS_URL)
     return {"mode": "real" if ok else "fake (real unreachable)", "reachable": ok, "url": settings.MOCKS_URL}
+
+
+def push_real_chaos(flags: dict) -> None:
+    """Chaos Panel -> the REAL mocks service (no-op with the fake client, which reads the flags itself).
+    identity_down -> error_500, ledger_down -> missing_record (the mocks' switches are global, so the claim pauses at the first lookup)."""
+    if not settings.MOCKS_URL or not _reachable(settings.MOCKS_URL):
+        return
+    import os
+    headers = {"X-Chaos-Token": os.environ["MOCKS_CHAOS_TOKEN"]} if os.environ.get("MOCKS_CHAOS_TOKEN") else {}
+    try:
+        httpx.post(settings.MOCKS_URL.rstrip("/") + "/chaos", timeout=3.0, headers=headers,
+                   json={"error_500": bool(flags.get("identity_down")), "missing_record": bool(flags.get("ledger_down"))}).raise_for_status()
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("could not forward chaos to the real mocks: %s", exc)

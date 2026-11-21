@@ -149,3 +149,15 @@ def test_every_scenario_in_the_shared_file_behaves_as_documented(client, demo, d
         assert (b["status"], b["decision"]["action"]) == (s["expected_status"], s["expected_action"]), (s["key"], b["status"], b["decision"]["action"])
         if s.get("setup", {}).get("chaos"):
             client.post("/admin/demo/chaos", json={k: False for k in s["setup"]["chaos"]}, headers=admin)
+
+
+def test_chaos_panel_is_forwarded_to_the_real_mocks(monkeypatch):
+    """With real mocks in use, the Chaos Panel's switches reach the mocks service (identity_down -> error_500)."""
+    from app.services import mocks_client
+
+    sent = []
+    monkeypatch.setattr(mocks_client.settings, "MOCKS_URL", "http://mocks.test")
+    monkeypatch.setattr(mocks_client, "_reachable", lambda url: True)
+    monkeypatch.setattr(mocks_client.httpx, "post", lambda url, **kw: sent.append((url, kw["json"])) or type("R", (), {"raise_for_status": lambda s: None})())
+    mocks_client.push_real_chaos({"identity_down": True, "ledger_down": False, "payments_down": False})
+    assert sent == [("http://mocks.test/chaos", {"error_500": True, "missing_record": False})]
