@@ -29,12 +29,12 @@ def test_seed_adds_the_demo_layer_once(SessionLocal, demo):
     with SessionLocal() as db:
         assert db.query(CheckedMessage).count() == 60 and demo_mod.SCAM_CHECKS_TOTAL == 60
         names = {u.username: u.name for u in db.query(User).filter(User.username.like("s_-%"))}
-        assert sorted(names) == ["s1-clean", "s2-spelling", "s3-shortpay", "s4-duplicate", "s5-consent", "s6-idown"]
-        assert db.query(Family).count() == 16 and db.query(User).count() == 21
+        assert sorted(names) == ["s1-clean", "s2-spelling", "s3-shortpay", "s4-duplicate", "s5-consent", "s6-idown", "s7-autohandle"]
+        assert db.query(Family).count() == 17 and db.query(User).count() == 22
         assert db.get(Case, "case-demo-4").status == "needs_more_proof"
         assert all(u.cnic.startswith("00000") and len(u.cnic) == 13 for u in db.query(User).filter(User.username.like("s_-%")))
         seed.run(db, scenarios=True)  # idempotent: nothing is duplicated
-        assert db.query(CheckedMessage).count() == 60 and db.query(User).count() == 21 and db.query(Family).count() == 16
+        assert db.query(CheckedMessage).count() == 60 and db.query(User).count() == 22 and db.query(Family).count() == 17
 
 
 def test_scenario_1_clean_approval_pays_once(client, demo):
@@ -101,7 +101,7 @@ def test_scenario_6_identity_service_down_pauses_then_resume_completes(client, d
     assert again["status"] == "needs_more_proof" and again["finished"] is True and [s["status"] for s in again["pipeline_steps"]] == ["done"] * 8
 
 
-def test_the_six_outcomes_are_all_different(client, demo):
+def test_the_outcomes_are_all_different(client, demo):
     got = {}
     for who, body in (("s1-clean", SAY), ("s2-spelling", SAY), ("s3-shortpay", SHORT), ("s4-duplicate", SAY), ("s5-consent", SAY)):
         b = claim(client, who, body)
@@ -114,4 +114,38 @@ def test_helper_files_for_a_scenario_citizen(client, demo):
     r = client.post("/claims", json=dict(SAY, on_behalf_of="u-demo-1"), headers=auth(client, "helper"))
     assert r.status_code == 202 and r.json()["status"] == "needs_more_proof"
     fams = client.get("/helper/families", headers=auth(client, "helper")).json()["items"]
-    assert len(fams) == 16 and {"Rukhsana Bibi", "Hameeda Begum"} <= {f["head_name"] for f in fams}
+    assert len(fams) == 17 and {"Rukhsana Bibi", "Hameeda Begum"} <= {f["head_name"] for f in fams}
+
+
+def test_scenario_7_auto_handled_payment_check_closes_with_no_payment(client, demo):
+    """The one scenario where the AI itself says auto_handle: a structured question the official ledger answers with certainty."""
+    h = auth(client, "s7-autohandle")
+    r = client.post("/claims", json={"intent": "payment_check", "month": "2026-10"}, headers=h)
+    assert r.status_code == 202
+    b = client.get("/claims/%s" % r.json()["claim_id"], headers=h).json()
+    d = b["decision"]
+    assert b["status"] == "closed" and d["action"] == "auto_handle" and d["decided_by"] == "ai" and d["confidence"] >= 0.9
+    assert [s["status"] for s in b["pipeline_steps"]] == ["done"] * 8 and d["rule_version"] == 1
+    assert d["trace"]["payment_needed"] is False and d["trace"]["flags"] == [] and d["trace"]["intent"] == "payment_check"
+    assert "PKR 12000" in b["explanation_en"] and "2026-10-05" in b["explanation_en"] and "agent-017" in b["explanation_en"] and "Nothing more is owed" in b["explanation_en"]
+    assert "12000" in b["explanation_ur"] and "2026-10-05" in b["explanation_ur"]
+    assert any("Nothing is owed" in x for x in d["reasons"])
+    assert len(PAYMENTS) == 0  # no money moved, no officer involved
+    case = client.get("/cases/%s" % b["case_id"], headers=auth(client, "officer")).json()
+    assert case["status"] == "closed" and case["amount_claimed_pkr"] == 0 and any("answered automatically" in n["text"] for n in case["notes"])
+
+
+def test_every_scenario_in_the_shared_file_behaves_as_documented(client, demo, db):
+    """Data-driven: demo_people.json says what each request should give; the backend must agree (so the file stays honest)."""
+    from app.demo_data import SCENARIOS
+
+    admin = auth(client, "admin")
+    for s in SCENARIOS:
+        if s.get("setup", {}).get("chaos"):
+            client.post("/admin/demo/chaos", json=s["setup"]["chaos"], headers=admin)
+        r = client.post("/claims", json=s["request"], headers=auth(client, s["username"]))
+        assert r.status_code == 202, s["key"]
+        b = r.json()
+        assert (b["status"], b["decision"]["action"]) == (s["expected_status"], s["expected_action"]), (s["key"], b["status"], b["decision"]["action"])
+        if s.get("setup", {}).get("chaos"):
+            client.post("/admin/demo/chaos", json={k: False for k in s["setup"]["chaos"]}, headers=admin)

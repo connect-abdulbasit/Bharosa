@@ -34,7 +34,7 @@ needs an officer and is made once (idempotency key). Mock failures send a case t
 **Weak internet.** Claims run in the background (`202` + `GET /claims/{id}/progress`). Polled GETs support `ETag` /
 `If-None-Match` (`304`). Responses are gzip-compressed and omit empty fields.
 
-**Limits.** `/auth/login` 5/min per IP; `/public` 30/min per API key; everything else 120/min per IP. Errors always look like
+**Limits.** `/auth/login` 5/min per IP (30/min while the demo mode is on); `/public` 30/min per API key; everything else 120/min per IP. Errors always look like
 `{"error", "message", "request_id"}`.
 """
 

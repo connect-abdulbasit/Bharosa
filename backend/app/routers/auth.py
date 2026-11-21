@@ -18,7 +18,7 @@ from pydantic import BaseModel
 router = APIRouter(tags=["auth"], route_class=CompactRoute)
 
 
-@router.post("/auth/login", response_model=TokenResponse, summary="Log in (5 attempts per minute per IP)")
+@router.post("/auth/login", response_model=TokenResponse, summary="Log in (rate limited per IP: LOGIN_RATE_LIMIT)")
 @limiter.limit(lambda: settings.LOGIN_RATE_LIMIT)
 def login(request: Request, body: LoginRequest = Body(..., openapi_examples={"officer": {"summary": "Demo officer (fake password)", "value": {"username": "officer", "password": "officer-demo-123"}}}),
           db: Session = Depends(get_db)):

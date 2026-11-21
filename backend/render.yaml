@@ -29,6 +29,7 @@ services:
         value: "1"
       - key: DEMO_MODE                # 1 = admin demo reset + 6 scenarios + fake-mocks outage switches (fine for a judged prototype)
         value: "1"
+      # LOGIN_RATE_LIMIT is left unset on purpose: 30/minute while DEMO_MODE=1, 5/minute once you set DEMO_MODE=0 (or set it yourself)
       - key: SENTRY_DSN               # optional
         sync: false
       - key: LLM_API_KEY              # only for AI_MODE=real

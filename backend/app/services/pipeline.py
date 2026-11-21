@@ -157,11 +157,22 @@ def _open_duplicate(ctx: Ctx) -> Optional[Case]:
         return None
     stmt = (select(Case).join(Claim, Claim.case_id == Case.id)
             .where(Case.citizen_id == ctx.citizen.id, Claim.month == ctx.claim.month, Case.id != ctx.case.id,
+                   Claim.claim_type != "payment_check",  # a question is not a claim: it never blocks (or is blocked by) a real claim
                    Case.status.notin_(CLOSED_FOR_DUPLICATES)).order_by(Case.created_at))
     return ctx.db.execute(stmt).scalars().first()
 
 
+def is_check(ctx: Ctx) -> bool:
+    return ctx.claim.claim_type == "payment_check"
+
+
 def step_extract_claim(ctx: Ctx) -> Dict[str, Any]:
+    if is_check(ctx):
+        # "Did my payment arrive?" is a button, not speech: nothing to extract, nothing is claimed. The name is the ACCOUNT's.
+        draft = ClaimDraft(claimant_name=ctx.citizen.name, claim_type="payment_check", period=ctx.claim.month,
+                           details="Payment check (structured request, no speech)", confidence=1.0, model_version="structured-input")
+        _audit(ctx, "agent", "extract_claim", {"intent": "payment_check", "month": ctx.claim.month}, {"structured": True, "month": ctx.claim.month})
+        return {"draft": draft.model_dump(mode="json")}
     transcript = ctx.claim.transcript or ""
     res = ai.extract_claim(transcript)
     if isinstance(res, ExtractionError):
@@ -235,13 +246,13 @@ def step_ledger_lookup(ctx: Ctx) -> Dict[str, Any]:
     received = sum(int(p.get("amount_pkr", 0)) for p in unique)
     if 0 < received < PROGRAMME_AMOUNT:
         flags.append("short_payment")
-    if received >= PROGRAMME_AMOUNT or (received == 0 and ctx.claim.claim_type == "short_paid"):
-        flags.append("claim_contradicts_ledger")
+    if not is_check(ctx) and (received >= PROGRAMME_AMOUNT or (received == 0 and ctx.claim.claim_type == "short_paid")):
+        flags.append("claim_contradicts_ledger")  # (a check claims nothing, so there is nothing to contradict)
     shortfall = max(PROGRAMME_AMOUNT - received, 0)
     ctx.claim.expected_amount, ctx.claim.received_amount = PROGRAMME_AMOUNT, received
     agents = sorted({str(p.get("agent_id")) for p in unique if p.get("agent_id")})
     ctx.state.update(flags_found=flags, shortfall=shortfall, agents=agents,
-                     payment_needed=shortfall > 0 and "claim_contradicts_ledger" not in flags)
+                     payment_needed=(not is_check(ctx)) and shortfall > 0 and "claim_contradicts_ledger" not in flags)  # a check never creates a payment
     _audit(ctx, "agent", "ledger_lookup", {"month": month}, {"payments": len(unique), "received": received, "shortfall": shortfall, "flags": flags, "agents": agents})
     return {"payments": unique, "received": received, "shortfall": shortfall, "flags": flags, "agents": agents}
 
@@ -257,8 +268,10 @@ def step_match_person(ctx: Ctx) -> Dict[str, Any]:
     return {"match": res.model_dump(mode="json")}
 
 
-def map_decision(action: str, payment_needed: bool, needs: List[str]) -> Dict[str, Any]:
-    """AI action -> case status. A payment ALWAYS needs an officer."""
+def map_decision(action: str, payment_needed: bool, needs: List[str], check: bool = False) -> Dict[str, Any]:
+    """AI action -> case status. A payment ALWAYS needs an officer. A payment CHECK that is fully answered is simply closed."""
+    if action == "auto_handle" and check and not needs and not payment_needed:
+        return {"status": "closed", "why": "The official ledger confirms the payment: nothing is owed, so the question was answered automatically and closed"}
     if action == "auto_handle":
         if needs:
             return {"status": "needs_more_proof", "why": "AI would handle this, but proof is still missing"}
@@ -281,12 +294,25 @@ def step_decide(ctx: Ctx) -> Dict[str, Any]:
     evidence = Evidence(match=MatchResult(**out["match_person"]["match"]), document=reading, ledger=ledger,
                         red_flags=flags, payment_step=ctx.state["payment_needed"])
     dec = ai.decide(draft, evidence, ctx.rule)
-    action = dec.action.value
+    action = ai_action = dec.action.value
     needs = list(ctx.state["needs"])
-    mapped = map_decision(action, ctx.state["payment_needed"], needs)
+    check, override = is_check(ctx), None
+    if check:  # only a CONFIRMED full payment may be auto-handled; anything else is routed, never guessed
+        received = out["ledger_lookup"]["received"]
+        if ("duplicate_payment" in ctx.state["flags_found"] or 0 < received < PROGRAMME_AMOUNT) and action != "send_to_human":
+            action, override = "send_to_human", "The ledger shows a short or duplicate payment: a person must look at it"
+        elif received == 0 and action == "auto_handle":
+            action, override = "ask_more", "No payment is on record for this month, so this cannot be answered as 'paid'"
+            needs = ["No payment is on record for %s. If you did not receive it, ask us to file a claim." % ctx.claim.month]
+    mapped = map_decision(action, ctx.state["payment_needed"], needs, check=check)
     if mapped["status"] == "needs_more_proof" and not needs:
         needs = list(GENERIC_NEEDS)
     reasons = list(dec.reasons)
+    if override:
+        reasons.append(override + ".")
+    if check and mapped["status"] == "closed":
+        p = out["ledger_lookup"]["payments"][0]
+        reasons.append("Official ledger: PKR %s paid on %s by %s. Nothing is owed." % (out["ledger_lookup"]["received"], p.get("date"), p.get("agent_id")))
     if "short_payment" in flags:
         agents = ctx.state.get("agents") or []
         received = out["ledger_lookup"]["received"]
@@ -294,14 +320,15 @@ def step_decide(ctx: Ctx) -> Dict[str, Any]:
     if ctx.state["payment_needed"]:
         reasons.append("A payment of PKR %d is involved: an officer must approve it." % ctx.state["shortfall"])
     trace = dict(dec.trace, needs=needs, flags=flags, flags_found=ctx.state["flags_found"], payment_needed=ctx.state["payment_needed"],
-                 shortfall=ctx.state["shortfall"], ai_action=action, mapped_status=mapped["status"], why=mapped["why"])
+                 shortfall=ctx.state["shortfall"], ai_action=ai_action, mapped_status=mapped["status"], why=mapped["why"],
+                 intent="payment_check" if check else "claim", **({"override": override} if override else {}))
     row = Decision(case_id=ctx.case.id, action=action, confidence=dec.confidence, reasons=reasons, trace=trace,
-                   model_version=dec.model_version, decided_by="ai", rule_id=ctx.rule.rule_id, rule_version=dec.rule_version)
+                   model_version=dec.model_version, decided_by="agent" if override else "ai", rule_id=ctx.rule.rule_id, rule_version=dec.rule_version)
     ctx.db.add(row)
     ctx.case.confidence = dec.confidence
     ctx.case.risk_score = _risk(flags, dec.confidence)
     ctx.state["needs"] = needs
-    note = "AI decision %s (confidence %.2f, rule v%s): %s." % (action, dec.confidence, dec.rule_version, mapped["why"])
+    note = "%s decision %s (confidence %.2f, rule v%s): %s." % ("Agent" if override else "AI", action, dec.confidence, dec.rule_version, mapped["why"])
     if needs and mapped["status"] == "needs_more_proof":
         note += " Needed: %s." % "; ".join(needs)
     _move(ctx, mapped["status"], note)
@@ -313,8 +340,31 @@ def step_decide(ctx: Ctx) -> Dict[str, Any]:
     return {"action": action, "confidence": dec.confidence, "status": mapped["status"], "rule_version": dec.rule_version}
 
 
+def _check_texts(ctx: Ctx, action: str) -> Dict[str, str]:
+    """Plain-language answer for a payment check, grounded in the ledger (the generic AI explanation talks about claims)."""
+    led = ctx.state["outputs"]["ledger_lookup"]
+    month, received = ctx.claim.month, led["received"]
+    if action == "auto_handle":
+        p = led["payments"][0]
+        en = ("Good news: your payment of PKR %s for %s was paid on %s (agent %s). Nothing more is owed, so we closed this question. "
+              "If you did not receive the money, tell your helper." % (received, month, p.get("date"), p.get("agent_id")))
+        ur = ("خوشخبری: %s کی آپ کی ادائیگی (%s روپے) %s کو ایجنٹ %s کے ذریعے ہو چکی ہے۔ مزید کوئی رقم واجب نہیں، اس لیے یہ سوال بند کر دیا گیا۔ "
+              "اگر آپ کو پیسے نہیں ملے تو اپنے مددگار کو بتائیں۔" % (month, received, p.get("date"), p.get("agent_id")))
+    elif action == "ask_more":
+        en = "We found no payment for %s. If you did not receive it, tell us and we will file a claim for you." % month
+        ur = "%s کے لیے کوئی ادائیگی درج نہیں ملی۔ اگر آپ کو پیسے نہیں ملے تو ہمیں بتائیں، ہم آپ کا دعویٰ درج کر دیں گے۔" % month
+    else:
+        en = "Our records show PKR %s for %s, which is not the full amount (PKR %s). An officer will look into it." % (received, month, PROGRAMME_AMOUNT)
+        ur = "ہمارے ریکارڈ کے مطابق %s کے لیے آپ کو %s روپے ملے، جو پوری رقم (%s روپے) نہیں ہے۔ ایک افسر آپ کا معاملہ دیکھے گا۔" % (month, received, PROGRAMME_AMOUNT)
+    _audit(ctx, "agent", "explain", {"action": action, "intent": "payment_check"}, {"chars_ur": len(ur), "chars_en": len(en)})
+    return {"explanation_ur": ur, "explanation_en": en}
+
+
 def step_explain(ctx: Ctx) -> Dict[str, Any]:
     row = ctx.db.get(Decision, ctx.state["decision_id"])
+    if is_check(ctx):
+        row.trace = dict(row.trace, **_check_texts(ctx, row.action))
+        return {"explained": True}
     texts = _explain(ctx, row.action, row.trace, ctx.state["needs"] if row.action != "send_to_human" else [], row.confidence, row.model_version)
     row.trace = dict(row.trace, **texts)
     return {"explained": True}
@@ -387,17 +437,20 @@ def make_ctx(db: Session, actor: User, citizen: User, case: Case, claim: Claim, 
     return Ctx(db=db, actor=actor, citizen=citizen, case=case, claim=claim, mocks=mocks, rule=rule, state=load_state(claim))
 
 
-def create(db: Session, actor: User, citizen: User, transcript: Optional[str], document_id: Optional[str]):
+def create(db: Session, actor: User, citizen: User, transcript: Optional[str], document_id: Optional[str],
+           intent: Optional[str] = None, month: Optional[str] = None):
     """Save the input: case + claim (+ audit), committed. The pipeline itself is run by a background job."""
     case = Case(citizen_id=citizen.id, created_by=actor.id, status="submitted", current_step="queued", notes=[])
     db.add(case)
     db.flush()
-    claim = Claim(case_id=case.id, claim_type="missing", expected_amount=0, received_amount=0, transcript=transcript,
-                  data={"document_id": document_id, "pipeline": new_state()})
+    check = intent == "payment_check"
+    claim = Claim(case_id=case.id, claim_type="payment_check" if check else "missing", expected_amount=0, received_amount=0,
+                  transcript=None if check else transcript, month=month if check else None,
+                  data={"document_id": None if check else document_id, "intent": intent or "claim", "pipeline": new_state()})
     db.add(claim)
     db.flush()
     audit.log(db, "user", actor.id, "case.create", "case", case.id, before=None,
-              after={"status": "submitted", "citizen_id": citizen.id, "via": "claim_pipeline"})
+              after={"status": "submitted", "citizen_id": citizen.id, "via": "claim_pipeline", "intent": intent or "claim"})
     audit.log(db, "user", actor.id, "claim.create", "claim", claim.id, after={"case_id": case.id, "citizen_id": citizen.id,
               "has_document": bool(document_id)})
     return case, claim

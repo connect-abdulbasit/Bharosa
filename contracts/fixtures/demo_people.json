@@ -1,0 +1,238 @@
+{
+  "_note": "FAKE demo people shared by /backend (fake mocks) and, TODO(Hadi), /mocks. Additive changes only. The stub AI always hears 'Mohammad Aslam', so scenario identities list it as an alias (except scenario 2).",
+  "stub_heard_name": "Mohammad Aslam",
+  "programme": "Sahara Relief Programme",
+  "official_senders": [
+    "9090",
+    "9090-SAHARA",
+    "SAHARA-GOV",
+    "9091",
+    "SAHARA-HELP"
+  ],
+  "lookalike_senders": [
+    "9O9O",
+    "SAHARA-lNFO"
+  ],
+  "scam_senders": [
+    "SAHARA-INFO",
+    "9O9O",
+    "RELIEF-PAY",
+    "SAHARA-lNFO",
+    "0300-0000000",
+    "GOV-RELIEF"
+  ],
+  "agents": [
+    {
+      "agent_id": "agent-099",
+      "note": "Fictional agent who short-pays beneficiaries (scenario 3)"
+    },
+    {
+      "agent_id": "agent-017",
+      "note": "Fictional agent who pays in full (scenario 7)"
+    }
+  ],
+  "people": [
+    {
+      "n": 1,
+      "key": "clean-approval",
+      "title": "Clean approval",
+      "username": "s1-clean",
+      "user_id": "u-demo-1",
+      "name": "Rukhsana Bibi",
+      "cnic": "0000042101101",
+      "identity": {
+        "full_name": "Rukhsana Bibi",
+        "father_name": "Noor Din",
+        "date_of_birth": "1980-01-01",
+        "district": "Malir",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "needs_more_proof (stub AI confidence 0.81), then the officer approves and PKR 12000 is paid exactly once",
+      "expected_status": "needs_more_proof",
+      "expected_action": "ask_more"
+    },
+    {
+      "n": 2,
+      "key": "misspelled-name",
+      "title": "Misspelled name (ask more)",
+      "username": "s2-spelling",
+      "user_id": "u-demo-2",
+      "name": "Muhammed Aslam",
+      "cnic": "0000042101102",
+      "identity": {
+        "full_name": "Muhammad Aslam",
+        "father_name": "Abdul Rehman",
+        "date_of_birth": "1980-01-01",
+        "district": "Korangi",
+        "aliases": [],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "needs_more_proof: the heard name 'Mohammad Aslam' matches 'Muhammad Aslam' only as a spelling variant",
+      "expected_status": "needs_more_proof",
+      "expected_action": "ask_more"
+    },
+    {
+      "n": 3,
+      "key": "short-payment-bad-agent",
+      "title": "Short payment by a bad agent (officer)",
+      "username": "s3-shortpay",
+      "user_id": "u-demo-3",
+      "name": "Shabana Kausar",
+      "cnic": "0000042101103",
+      "identity": {
+        "full_name": "Shabana Kausar",
+        "father_name": "Mir Hassan",
+        "date_of_birth": "1980-01-01",
+        "district": "Karachi East",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [
+        {
+          "payment_id": "pay-9003",
+          "amount_pkr": 8000,
+          "date": "2026-10-05",
+          "agent_id": "agent-099",
+          "programme": "Sahara Relief Programme"
+        }
+      ],
+      "request": {
+        "transcript": "mujhe paisay kam mile hain"
+      },
+      "expect": "with_officer: short_payment red flag, PKR 8000 of 12000 paid by agent-099",
+      "expected_status": "with_officer",
+      "expected_action": "send_to_human"
+    },
+    {
+      "n": 4,
+      "key": "duplicate-claim",
+      "title": "Duplicate claim, same month (officer)",
+      "username": "s4-duplicate",
+      "user_id": "u-demo-4",
+      "name": "Naseem Akhtar",
+      "cnic": "0000042101104",
+      "identity": {
+        "full_name": "Naseem Akhtar",
+        "father_name": "Ghulam Nabi",
+        "date_of_birth": "1980-01-01",
+        "district": "Malir",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "with_officer: an open claim for 2026-10 already exists (case-demo-4)",
+      "expected_status": "with_officer",
+      "expected_action": "send_to_human",
+      "open_case": "case-demo-4"
+    },
+    {
+      "n": 5,
+      "key": "consent-withdrawn",
+      "title": "Consent withdrawn (blocked and logged)",
+      "username": "s5-consent",
+      "user_id": "u-demo-5",
+      "name": "Hameeda Begum",
+      "cnic": "0000042101105",
+      "identity": {
+        "full_name": "Hameeda Begum",
+        "father_name": "Allah Bakhsh",
+        "date_of_birth": "1980-01-01",
+        "district": "Korangi",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "with_officer: the ledger step is blocked (payments consent withdrawn) and logged; after the citizen grants again, resume completes",
+      "expected_status": "with_officer",
+      "expected_action": "send_to_human",
+      "withdrawn": "payments"
+    },
+    {
+      "n": 6,
+      "key": "identity-service-down",
+      "title": "Identity service down (paused, then resume)",
+      "username": "s6-idown",
+      "user_id": "u-demo-6",
+      "name": "Parveen Akhtar",
+      "cnic": "0000042101106",
+      "identity": {
+        "full_name": "Parveen Akhtar",
+        "father_name": "Din Muhammad",
+        "date_of_birth": "1980-01-01",
+        "district": "Karachi West",
+        "aliases": [
+          "Mohammad Aslam"
+        ],
+        "phone_last4": "0000"
+      },
+      "payments": [],
+      "request": {
+        "transcript": "mujhe is mahine ke paisay nahi mile"
+      },
+      "expect": "with_officer paused at identity_lookup with a note; after the service is back, resume completes",
+      "expected_status": "with_officer",
+      "expected_action": "send_to_human",
+      "setup": {
+        "chaos": {
+          "identity_down": true
+        }
+      }
+    },
+    {
+      "n": 7,
+      "key": "auto-handle",
+      "title": "Auto-handled: payment check, nothing owed",
+      "username": "s7-autohandle",
+      "user_id": "u-demo-7",
+      "name": "Gulshan Bibi",
+      "cnic": "0000042101107",
+      "identity": {
+        "full_name": "Gulshan Bibi",
+        "father_name": "Ali Gohar",
+        "date_of_birth": "1982-05-05",
+        "district": "Karachi Central",
+        "aliases": [],
+        "phone_last4": "0000"
+      },
+      "payments": [
+        {
+          "payment_id": "pay-9007",
+          "amount_pkr": 12000,
+          "date": "2026-10-05",
+          "agent_id": "agent-017",
+          "programme": "Sahara Relief Programme"
+        }
+      ],
+      "request": {
+        "intent": "payment_check",
+        "month": "2026-10"
+      },
+      "expect": "closed: the ledger confirms PKR 12000 was paid on 2026-10-05 (agent-017), so nothing is owed; answered automatically (AI auto_handle, no payment, no officer)",
+      "expected_status": "closed",
+      "expected_action": "auto_handle"
+    }
+  ]
+}

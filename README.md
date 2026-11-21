@@ -117,17 +117,17 @@ CIT=$(tok citizen citizen-demo-123); OFF=$(tok officer officer-demo-123); ADM=$(
 | **Failures go to an officer, never to an error page** | A slow or broken service, missing consent or a bug pauses the claim, adds a note and returns normally; `resume` continues where it stopped. | Demo scenario 6 (identity service down): `curl -s -X POST $API/admin/demo/chaos -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"identity_down":true}'`, file a claim as `s6-idown`, see `with_officer` + note |
 | **Rules are versioned and live** | An admin publishes a new, validated rule version: active at once, no restart; old decisions keep their version; unsafe rules are refused; a what-if shows the impact first. | `curl -s -X POST $API/rules/rule-stipend-short-payment/simulate -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.99,"ask_more_min":0.6}'` · `curl -s -X POST $API/rules/rule-stipend-short-payment/versions -H "Authorization: Bearer $ADM" -H 'content-type: application/json' -d '{"auto_handle_min":0.5,"ask_more_min":0.3,"logic":{"if":[true,"auto_handle","auto_handle"]}}'` -> **422 Unsafe rule** |
 
-More: **everything at once** with `make demo-scenarios` (resets, runs the six scenarios over HTTP, prints each outcome; run the backend with `BACKEND_MOCKS_URL= docker compose up`). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
+More: **everything at once** with `make demo-scenarios` (resets, runs the seven scenarios over HTTP, prints each outcome; run the backend with `BACKEND_MOCKS_URL= docker compose up`; login is limited to `LOGIN_RATE_LIMIT`: unset = 30/minute while `DEMO_MODE=1`, 5/minute otherwise). **Reset** to a known state any time: `make demo-reset` or `POST /admin/demo/reset`. **Weak internet**: claims return `202` immediately and run in the background (`GET /claims/{id}/progress`, ETag/304), responses are gzip and compact, ID photos are resized and stored in the database. **Privacy**: `GET /scam-map` returns counts only; areas with fewer than 3 reports are shown as `other`. Details: [docs/demo-scenarios.md](docs/demo-scenarios.md) · [backend/CLAUDE.md](backend/CLAUDE.md).
 
 ### Demo logins (all fake)
 | Who | Username | Password | Use it for |
 |---|---|---|---|
 | Citizen | `citizen` | `citizen-demo-123` | scam check, claim, consent, "someone else's case is 404" |
-| Helper | `helper` | `helper-demo-123` | files for 16 linked citizens (needs the citizen's PIN `1234` to grant consent for them) |
+| Helper | `helper` | `helper-demo-123` | files for 17 linked citizens (needs the citizen's PIN `1234` to grant consent for them) |
 | Officer | `officer` | `officer-demo-123` | review queue, decisions (reason required), payments |
 | Admin | `admin` | `admin-demo-123` | rules, simulation, API keys, demo reset and outage switches |
 | Auditor | `auditor` | `auditor-demo-123` | read-only: audit log, cases, scam map, evaluation |
-| Demo scenario 1-6 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown` | `citizen-demo-123` | the six scenarios above |
+| Demo scenario 1-7 | `s1-clean`, `s2-spelling`, `s3-shortpay`, `s4-duplicate`, `s5-consent`, `s6-idown`, `s7-autohandle` | `citizen-demo-123` | the seven scenarios (7 = auto-handled payment check) |
 
 ## Frontend screens
 Next.js PWA in `frontend/` (mobile-first, Urdu + English, read-aloud, saved progress). Runs without a backend in `fixtures` mode.

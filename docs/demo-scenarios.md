@@ -1,20 +1,20 @@
 # Demo scenarios (backend)
 
-Six named scenarios, seeded so each one **reliably reaches a different outcome even with the stub AI**.
+Seven named scenarios, seeded so each one **reliably reaches a different outcome even with the stub AI**. The data (people, identity records, ledger entries, `agent-099`, sender codes, and each scenario's expected result) lives in one shared file: [`contracts/fixtures/demo_people.json`](../contracts/fixtures/demo_people.json).
 All people, ID numbers (`00000…`), amounts and services are **fake / simulated**.
 
 ## Before you start
 ```bash
 # Backend with the built-in fake mocks (the scenario people live there):
 BACKEND_MOCKS_URL= docker compose up --build        # or locally: MOCKS_URL= make dev
-make demo-scenarios                                 # resets, then runs all six over HTTP and prints each outcome
+make demo-scenarios                                 # resets, then runs all seven over HTTP and prints each outcome
 ```
 - **Reset any time**: `POST /admin/demo/reset` (admin) or `make demo-reset`. It wipes cases, claims, decisions, jobs, ID photos, checked messages and consent changes, restores the seeded users, and re-seeds. **Rules and their history are kept** unless you pass `{"include_rules": true}` (`make demo-reset ARGS=--rules`). The append-only audit log is never wiped; the reset itself is audited (`demo.reset`).
-- All scenario citizens use the demo citizen password `citizen-demo-123` and are linked to the helper (`helper` / `helper-demo-123`), who can file for them with `on_behalf_of` (user ids `u-demo-1` … `u-demo-6`).
+- All scenario citizens use the demo citizen password `citizen-demo-123` and are linked to the helper (`helper` / `helper-demo-123`), who can file for them with `on_behalf_of` (user ids `u-demo-1` … `u-demo-7`).
 - Officer: `officer` / `officer-demo-123`. Admin: `admin` / `admin-demo-123`.
 - Claim text used below: **missing** = `mujhe is mahine ke paisay nahi mile`, **short** = `mujhe paisay kam mile hain`.
 
-> **Why most outcomes are "needs more proof" with the stub AI.** The stub claim reader always hears the name "Mohammad Aslam" at confidence **0.81**, which is below the 0.90 auto-handle threshold, so the AI can never fully approve. Any payment needs an officer anyway. With `AI_MODE=real` the AI decides on real evidence; the scenario data still exercises the same safeguards.
+> **Why most outcomes are "needs more proof" with the stub AI.** The stub claim reader always hears the name "Mohammad Aslam" at confidence **0.81**, which is below the 0.90 auto-handle threshold, so the AI can never fully approve a *claim*, and any payment needs an officer anyway. Scenario 7 is different on purpose: a **payment check** is a structured question (a button, no speech), so there is nothing uncertain to read, and the official ledger answers it. With `AI_MODE=real` the AI decides on real evidence; the scenario data still exercises the same safeguards.
 
 ## At a glance
 | # | Scenario | Login | AI / pipeline result | Status | Then |
@@ -25,6 +25,7 @@ make demo-scenarios                                 # resets, then runs all six 
 | 4 | Duplicate claim, same month | `s4-duplicate` | send_to_human, flag `duplicate_claim` | `with_officer` | points at `case-demo-4` |
 | 5 | Consent withdrawn | `s5-consent` | paused at `ledger_lookup`, blocked + logged | `with_officer` | grant again, **resume** completes |
 | 6 | Identity service down | `s6-idown` | paused at `identity_lookup` | `with_officer` | service back, **resume** completes |
+| 7 | Auto-handled payment check | `s7-autohandle` | **auto_handle** (confidence 0.95), no red flags | `closed` | nothing owed, **no payment, no officer** |
 
 ## 1. Clean approval — "Rukhsana Bibi"
 **Shows:** a clean claim is verified end to end, a payment is approved by a person, and it is paid exactly once.
@@ -64,9 +65,21 @@ make demo-scenarios                                 # resets, then runs all six 
 2. As `s6-idown`, file the **missing** claim → **200-class response, no 500**: `with_officer`, `identity_lookup` failed *"…service unavailable (simulated outage)"*, case note "Pipeline paused at step 'identity_lookup'…".
 3. Admin: `POST /admin/demo/chaos` `{"identity_down": false}`. As `s6-idown`: `POST /claims/{id}/resume` → completes; the finished steps (e.g. `extract_claim`) are **not** redone.
 
+## 7. Auto-handled: payment check, nothing owed — "Gulshan Bibi"
+**Shows:** the system answers by itself when (and only when) the answer is certain; nothing is paid; the reasoning is on record.
+1. Log in as `s7-autohandle`. `POST /claims` `{"intent": "payment_check", "month": "2026-10"}` (a question, **not** a claim: no speech, nothing claimed). → **202**, poll `/progress`.
+2. The agent builds the request from the account (confidence 1.0, `model_version: structured-input`), looks up identity and the ledger (consent first), and `match_person` matches the account name. The ledger shows **PKR 12000 paid on 2026-10-05 by agent-017**: no shortfall, no red flags.
+3. The AI's `decide` returns **`auto_handle`** (confidence 0.95 ≥ 0.90, no red flags). No payment is needed, so the case is **`closed`** with the explanation: *"Good news: your payment of PKR 12000 for 2026-10 was paid on 2026-10-05 (agent agent-017). Nothing more is owed… If you did not receive the money, tell your helper."* (Urdu too; an SMS is sent if she consented.)
+4. Nothing is paid: `GET /audit?entity=case&entity_id=<case>&action=payment.release` is empty. No officer was involved.
+
+**Why a payment check and not "auto-close a claim whose ledger says paid"?** A citizen who says "I was not paid" while the ledger says "paid" is the classic bad-agent case, so the system keeps sending **claims** like that to an officer (`claim_contradicts_ledger`). A *question* is different: nothing is claimed, and only a **confirmed full payment** is auto-handled. Anything else is routed, never guessed: no payment on record -> asks her whether to file a claim (`needs_more_proof`); a short or duplicate payment -> officer (`with_officer`). Checks never create a payment, never count as an "open claim" for the duplicate rule, and obey consent and the live rule (a stricter rule stops auto-handling).
+
 ## Also seeded for the demo
 - **60 scam checks** over fictional areas (Noorabad, Sahil Colony, Bagh-e-Zubaida, Mehran Town North, Kausar Basti, plus two tiny groups) for `GET /scam-map`. Areas and reasons with fewer than 3 reports appear only as `other`.
 - Digital Twin: after running scenarios, `POST /rules/rule-stipend-short-payment/simulate` (admin) with e.g. `{"auto_handle_min": 0.99, "ask_more_min": 0.6}` shows how many past decisions would change. It saves nothing.
 
-## Using real mocks instead
-The six scenario people exist only in the backend's built-in fake mocks (`app/demo_data.py`). With the real `/mocks` service they get "record not found" (a handy extra failure demo). TODO(Hadi): mirror the six people (and `agent-099`) into `/mocks/app/data`.
+## Shared data and real mocks
+All scenario data is in [`contracts/fixtures/demo_people.json`](../contracts/fixtures/demo_people.json) (validated by `contracts.schemas.DemoPeople`; it also lists each scenario's expected result, and a backend test checks they hold). The backend's built-in fake mocks read it. With the real `/mocks` service the scenario people get "record not found" (a handy extra failure demo) until `/mocks` loads the same file. TODO(Hadi).
+
+## Login limit while demoing
+`/auth/login` is limited per IP. `LOGIN_RATE_LIMIT` unset means **30/minute while `DEMO_MODE=1`** (so the runner can log in as nine different users without waiting) and **5/minute** once `DEMO_MODE=0`. Set `LOGIN_RATE_LIMIT` to override either.

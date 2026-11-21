@@ -6,6 +6,7 @@ from app.auth import ANY_ROLE, require_role
 from app.db import get_db
 from app.models import Claim, Document, User
 from app.routers.cases import get_visible_case
+from app.models.base import utcnow
 from app.routing import CompactRoute
 from app.services import audit, jobs, pipeline
 from app.services.access import resolve_citizen
@@ -19,6 +20,8 @@ CLAIM_EXAMPLES = {
                 "value": {"transcript": "mujhe is mahine ke paisay nahi mile", "document_id": None}},
     "helper": {"summary": "A helper files for a linked citizen",
                "value": {"transcript": "mujhe paisay kam mile hain", "on_behalf_of": "u-citizen-2"}},
+    "payment_check": {"summary": "Did my payment arrive? (a question, not a claim: no speech, nothing is claimed)",
+                      "value": {"intent": "payment_check", "month": "2026-10"}},
 }
 
 
@@ -51,7 +54,9 @@ def create_claim(body: ClaimCreate = Body(..., openapi_examples=CLAIM_EXAMPLES),
         doc = db.get(Document, body.document_id)
         if doc is None or doc.owner_id != citizen.id or doc.case_id is not None:
             raise HTTPException(status_code=422, detail="Unknown or already used document")
-    case, claim = pipeline.create(db, user, citizen, body.transcript, body.document_id)
+    check = body.intent == "payment_check"
+    month = (body.month or utcnow().strftime("%Y-%m")) if check else None
+    case, claim = pipeline.create(db, user, citizen, body.transcript, body.document_id, intent=body.intent, month=month)
     job = jobs.enqueue(db, "claim_start", claim, user.id)
     db.commit()
     jobs.submit(job.id)

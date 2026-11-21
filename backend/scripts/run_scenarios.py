@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Run the 6 demo scenarios over HTTP against a running backend and report each outcome. Stdlib only.
+"""Run the 7 demo scenarios over HTTP against a running backend and report each outcome. Stdlib only.
 
     python backend/scripts/run_scenarios.py [BASE_URL]        (default http://localhost:8000)
 
 It first resets the demo state (POST /admin/demo/reset with include_rules=true), so it is safe to run repeatedly.
 The scenario citizens exist in the backend's BUILT-IN fake mocks: run the backend with MOCKS_URL empty
-(docker: `BACKEND_MOCKS_URL= docker compose up`). Exit code 0 = every scenario behaved as documented in docs/demo-scenarios.md.
+(docker: `BACKEND_MOCKS_URL= docker compose up`). The scenario data comes from contracts/fixtures/demo_people.json.
+Exit code 0 = every scenario behaved as documented in docs/demo-scenarios.md.
 """
 import json
 import sys
@@ -151,6 +152,21 @@ def s6(t):
     return "with_officer (paused at identity_lookup) -> service back -> resume completes"
 
 
+def s7(t):
+    tok = login("s7-autohandle")
+    s, b = call("POST", "/claims", {"intent": "payment_check", "month": "2026-10"}, tok)
+    assert s == 202, "POST /claims -> %s %s" % (s, b)
+    c = settle(tok, b["claim_id"])
+    show(c)
+    d = c["decision"]
+    print("   explanation: " + c["explanation_en"])
+    s, a = call("GET", "/audit?entity=case&entity_id=%s&action=payment.release" % c["case_id"], token=t["admin"])
+    print("   payment entries for this case: %d (nothing is paid, no officer is involved)" % a["total"])
+    assert c["status"] == "closed" and d["action"] == "auto_handle" and d["decided_by"] == "ai" and d["confidence"] >= 0.9
+    assert d["trace"]["payment_needed"] is False and d["trace"]["flags"] == [] and a["total"] == 0
+    return "closed: AI auto_handle (confidence %.2f), ledger confirms PKR 12000 paid, no payment, no officer" % d["confidence"]
+
+
 def main():
     s, h = call("GET", "/health")
     if s != 200:
@@ -165,7 +181,8 @@ def main():
     results = []
     for n, (title, fn) in enumerate([("Clean approval", s1), ("Misspelled name (ask more)", s2), ("Short payment by a bad agent (officer)", s3),
                                      ("Duplicate claim, same month (officer)", s4), ("Consent withdrawn (blocked and logged)", s5),
-                                     ("Identity service down (paused, then resume)", s6)], start=1):
+                                     ("Identity service down (paused, then resume)", s6),
+                                     ("Auto-handled: payment check, nothing owed", s7)], start=1):
         print("SCENARIO %d: %s" % (n, title))
         try:
             outcome = fn(t)

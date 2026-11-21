@@ -12,6 +12,16 @@ def _env(name: str, default: str) -> str:
     return value.strip()
 
 
+def default_login_limit(explicit: str, demo_mode: bool) -> str:
+    """LOGIN_RATE_LIMIT if set; otherwise 30/minute in demo mode (the demo logs in as many users from one IP) and 5/minute for real use."""
+    if explicit:
+        return explicit
+    return "30/minute" if demo_mode else "5/minute"
+
+
+_DEMO_MODE = _env("DEMO_MODE", "1") == "1"
+
+
 class Settings:
     AI_MODE = _env("AI_MODE", "stub")
     MOCKS_URL = _env("MOCKS_URL", "")  # empty -> use fake_mocks_client
@@ -25,14 +35,14 @@ class Settings:
     DOCUMENT_JPEG_QUALITY = int(_env("DOCUMENT_JPEG_QUALITY", "80"))
     MAX_DOCUMENT_BYTES = int(_env("MAX_DOCUMENT_BYTES", str(2 * 1024 * 1024)))  # stored size cap (also a DB CHECK constraint)
     DOCUMENT_DISK_CACHE = _env("DOCUMENT_DISK_CACHE", "0") == "1"  # optional local copy in UPLOAD_DIR; the database is the source of truth
-    DEMO_MODE = _env("DEMO_MODE", "1") == "1"  # enables POST /admin/demo/reset and the demo chaos switches. Set 0 for real use
+    DEMO_MODE = _DEMO_MODE  # enables POST /admin/demo/reset and the demo chaos switches. Set 0 for real use
     DEMO_CITIZEN_PIN = _env("DEMO_CITIZEN_PIN", "1234")  # FAKE, prototype only
     # --- background pipeline
     PIPELINE_MODE = _env("PIPELINE_MODE", "thread")  # thread: in-process worker | inline: run inside the request (tests)
     JOB_POLL_SECONDS = float(_env("JOB_POLL_SECONDS", "1.0"))
     JOB_STALE_SECONDS = int(_env("JOB_STALE_SECONDS", "300"))  # a 'running' job older than this is re-queued at startup
     # --- rate limiting (slowapi format "N/period")
-    LOGIN_RATE_LIMIT = _env("LOGIN_RATE_LIMIT", "5/minute")
+    LOGIN_RATE_LIMIT = default_login_limit(_env("LOGIN_RATE_LIMIT", ""), _DEMO_MODE)  # 5/minute, or 30/minute while DEMO_MODE=1, unless set
     DEFAULT_RATE_LIMIT = _env("DEFAULT_RATE_LIMIT", "120/minute")
     PUBLIC_RATE_LIMIT = _env("PUBLIC_RATE_LIMIT", "30/minute")  # per API key
     TRUST_PROXY = _env("TRUST_PROXY", "0") == "1"  # use X-Forwarded-For for the client IP (set behind Render/Railway)

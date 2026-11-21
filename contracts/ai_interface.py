@@ -37,7 +37,7 @@ class ClaimDraft(BaseModel):
     claimant_name: str
     cnic: Optional[str] = None
     programme: str = "Sahara Relief Programme"
-    claim_type: Literal["missing", "short_paid"]
+    claim_type: Literal["missing", "short_paid", "payment_check"]  # payment_check: structured "did my payment arrive?" (backend-made, no speech)
     amount_claimed_pkr: Optional[int] = None
     period: Optional[str] = None
     details: Optional[str] = None

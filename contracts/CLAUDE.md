@@ -20,6 +20,9 @@
 | `openapi-mocks.yaml` | Mock service endpoint list |
 | `fixtures/*.json` | One realistic response per platform endpoint; backend serves them as stubs, frontend uses them in `fixtures` mode |
 
+## Shared demo data: `fixtures/demo_people.json`
+The demo citizens (accounts, identity records, ledger entries, fictional `agent-099` / `agent-017`, official and look-alike sender codes) live in ONE file, validated by `schemas.DemoPeople`. `/backend` reads it for its in-process fake mocks and for seeding accounts. **TODO(Hadi): `/mocks` must load the same file** (identity by `cnic`, ledger by `cnic`, `/senders`) so the demo scenarios behave identically against the real mocks. Additive changes only (add people, never change existing CNICs).
+
 ## Checklist
 - [ ] TODO(Basit): confirm response models match what routers return (backend tests validate fixtures against `schemas.py`).
 - [ ] TODO(Hani): confirm fixtures contain every state the UI needs (empty list, error, low confidence).

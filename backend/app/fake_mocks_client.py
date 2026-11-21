@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 from app import demo_data
 from app.services.mock_errors import MockUnavailable
 
-SENDERS = ["9090", "9090-SAHARA", "SAHARA-GOV", "9091", "SAHARA-HELP"]
+SENDERS = list(demo_data.OFFICIAL_SENDERS)  # official sender codes, from the shared demo_people.json
 _PROG = "Sahara Relief Programme"
 IDENTITY: Dict[str, Dict[str, Any]] = {
     "0000042101001": {"full_name": "Muhammad Aslam", "father_name": "Abdul Rehman", "date_of_birth": "1984-03-12", "district": "Karachi East", "aliases": ["Mohammad Aslam", "M. Aslam"], "phone_last4": "4471"},
@@ -23,8 +23,8 @@ LEDGER: Dict[str, List[Dict[str, Any]]] = {
     "0000042101004": [{"payment_id": "pay-1004", "amount_pkr": 12000, "date": "2026-09-05", "agent_id": "agent-022", "programme": _PROG}],
     "0000042101005": [{"payment_id": "pay-1005", "amount_pkr": 12000, "date": "2026-10-06", "agent_id": "agent-031", "programme": _PROG}],
 }
-# Demo scenarios (ALL FAKE): the 6 scenario people, so the demo works without the real /mocks service.
-# TODO(Hadi): mirror these 6 people into /mocks so the scenarios also work against the real mocks.
+# Demo scenarios (ALL FAKE): the scenario people, so the demo works without the real /mocks service.
+# They come from contracts/fixtures/demo_people.json. TODO(Hadi): /mocks must load the same file so the scenarios also work against the real mocks.
 for _s in demo_data.SCENARIOS:
     IDENTITY[_s["cnic"]] = dict(_s["identity"])
     LEDGER[_s["cnic"]] = [dict(p) for p in _s["payments"]]

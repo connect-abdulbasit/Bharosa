@@ -3,7 +3,7 @@
 Rules: additive changes only. Python 3.9 compatible (use Optional/List, not X | None).
 Every mock response carries `simulated: true`.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -196,6 +196,8 @@ class CloseRequest(BaseModel):
 
 # --------------------------------------------------------------------------- platform: claims etc.
 class ClaimCreate(BaseModel):
+    intent: Optional[Literal["claim", "payment_check"]] = Field(None, description="'claim' (default) or 'payment_check' (did my payment arrive? no speech, nothing is claimed)")
+    month: Optional[str] = Field(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM, for payment_check (default: this month)")
     transcript: Optional[str] = None
     cnic: Optional[str] = None
     document_id: Optional[str] = None
@@ -468,3 +470,49 @@ class RuleSimulation(BaseModel):
     by_transition: Dict[str, int] = Field(default_factory=dict)  # "ask_more -> auto_handle": 3
     examples: List[RuleSimulationExample] = Field(default_factory=list)  # up to 20
     simulated: bool = True
+
+
+# --------------------------------------------------------------------------- demo people (fixtures/demo_people.json, additive)
+class DemoIdentity(BaseModel):
+    full_name: str
+    father_name: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    district: Optional[str] = None
+    aliases: List[str] = Field(default_factory=list)
+    phone_last4: Optional[str] = None
+
+
+class DemoPerson(BaseModel):
+    """One demo scenario citizen: the account (backend) AND the identity + ledger the mocks must return for the CNIC."""
+
+    n: int
+    key: str
+    title: str
+    username: str
+    user_id: str
+    name: str
+    cnic: str
+    identity: DemoIdentity
+    payments: List[Payment] = Field(default_factory=list)
+    request: Dict[str, Any]  # POST /claims body
+    expect: str
+    expected_status: str  # status right after the pipeline ran (before any officer action)
+    expected_action: str  # AI/agent decision action at that point
+    open_case: Optional[str] = None  # a seeded open case for the same month (duplicate scenario)
+    withdrawn: Optional[str] = None  # a consent scope that starts withdrawn
+    setup: Optional[Dict[str, Any]] = None  # e.g. {"chaos": {"identity_down": true}}
+
+
+class DemoAgent(BaseModel):
+    agent_id: str
+    note: str
+
+
+class DemoPeople(BaseModel):
+    stub_heard_name: str
+    programme: str
+    official_senders: List[str]
+    lookalike_senders: List[str]
+    scam_senders: List[str]
+    agents: List[DemoAgent]
+    people: List[DemoPerson]
