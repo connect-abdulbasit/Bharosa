@@ -12,7 +12,7 @@ from app.services import audit
 from contracts.enums import ConsentScope
 
 DEFAULT_RECIPIENT = {
-    "identity": "Identity service (simulated NADRA)",
+    "identity": "Identity service (simulated)",
     "payments": "Payment ledger (simulated Raast)",
     "complaints": "Complaints desk (simulated)",
     "notifications": "SMS notifications (simulated)",

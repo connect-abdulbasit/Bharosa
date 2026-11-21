@@ -27,7 +27,7 @@ PAYMENTS: Dict[str, str] = {}  # idempotency key -> payment_ref
 CALLS: Dict[str, int] = {}     # "GET /ledger/<cnic>" -> times called (lets e2e prove a call was NOT made)
 
 app = FastAPI(title="Bharosa Mock Services (SIMULATED)", version="0.1.0",
-              description="All data and responses are simulated. No real NADRA/Raast/SMS.")
+              description="All data and responses are simulated. No real identity, payment or SMS system is used.")
 
 
 class ChaosUpdate(BaseModel):
