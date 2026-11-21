@@ -194,6 +194,17 @@ paths:
             application/json:
               schema:
                 $ref: 'schemas.py#/MessageCheckResponse'
+  /me/notifications:
+    get:
+      summary: GET /me/notifications (my own in-app messages, Urdu + English; empty when the notifications service is off)
+      x-roles: [citizen,helper]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas.py#/NotificationsResponse'
   /scam-map:
     get:
       summary: GET /scam-map (counts only; areas/reasons under 3 reports grouped as other)

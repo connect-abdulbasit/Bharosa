@@ -519,3 +519,17 @@ class DemoPeople(BaseModel):
     scam_senders: List[str]
     agents: List[DemoAgent]
     people: List[DemoPerson]
+
+
+# --------------------------------------------------------------------------- in-app notifications (additive)
+class NotificationItem(BaseModel):
+    id: str
+    key: str  # case_approved | needs_more_proof | with_officer | case_rejected | case_closed
+    text_ur: Optional[str] = None
+    text_en: Optional[str] = None
+    at: Optional[int] = None  # unix seconds
+    simulated: bool = True
+
+
+class NotificationsResponse(BaseModel):
+    items: List[NotificationItem] = Field(default_factory=list)
