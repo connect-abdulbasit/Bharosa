@@ -27,17 +27,17 @@ Read the root `CLAUDE.md` first. Also read `AGENTS.md`: this Next.js version has
 | `/citizen/check` | citizen, helper | Working: scam verdict + `ReadAloud` |
 | `/citizen/claim` | citizen, helper | Working: `MicButton` + `PhotoCapture`, progress saved in IndexedDB per person, result + `ReadAloud` |
 | `/citizen/status` | citizen, helper | Claim timeline (`StatusTimeline`) + `ReadAloud` |
-| `/citizen/data` | citizen, helper | Stub (TODO(Hani): consent see/share/withdraw/correct) |
+| `/citizen/data` | citizen, helper | Working: consent see / withdraw (confirm) / share again / correct name or phone |
 | `/helper` | helper | Family list |
 | `/helper/[familyId]` | helper | One person's case: "now helping" banner, status, consent, voice note saved per person, "Switch person" clears the screen. Accepts `1` or `fam-001` |
 | `/officer` | officer, admin | Review queue |
 | `/officer/case/[id]` | officer, admin | Case detail, AI confidence, reasons, rule version, full trace, notes, Approve / Reject / Ask for more proof (officer only) |
 | `/admin` | admin | Users and roles list |
-| `/admin/rules` | admin | Stub (TODO(Hani): versioned rule editor) |
-| `/admin/twin` | admin | Digital Twin: pick a rule change, see "X past cases would change decision" (fixture data) |
-| `/admin/chaos` | admin | Stub (TODO(Hani): Chaos Panel UI over Hadi's `/chaos`) |
-| `/auditor` | auditor, admin | Stub (TODO(Hani): audit log viewer) |
-| `/eval` | officer, admin, auditor | Stub (TODO(Hani): evaluation dashboard) |
+| `/admin/rules` | admin | Working: active version, threshold bar, history, propose + publish new version |
+| `/admin/twin` | admin | Working: sliders -> `POST /rules/{id}/simulate` (real backend simulation) |
+| `/admin/chaos` | admin | Working: backend `/admin/demo/chaos` switches, `/health`, demo reset |
+| `/auditor` | auditor, admin | Working: filters, paging, before/after diff |
+| `/eval` | officer, admin, auditor | Working: live `/eval` numbers + Scam Map |
 
 PWA manifest: `src/app/manifest.ts`. Dynamic pages that call `useParams()` must be wrapped in `<Suspense>` (Next 16 build fails otherwise).
 
@@ -57,9 +57,10 @@ Also: `/citizen/status` and `/helper/[familyId]` use the first case from `GET /c
 - [x] Login + role redirect, session, logout (demo users).
 - [x] Landing, citizen home/check/claim/status, helper list + person view, officer queue + case, admin users, Digital Twin.
 - [x] Read-aloud on every citizen result; saved progress on claim and helper person pages.
-- [ ] TODO(Hani): `/citizen/data` consent screen, `/admin/rules`, `/admin/chaos`, `/auditor`, `/eval`.
-- [ ] TODO(Hani): service worker / offline shell, low-bandwidth mode, notifications UI.
-- [ ] TODO(Hani): blur check hint from `/documents` in `PhotoCapture`; real audio capture for Urdu where `SpeechRecognition` is missing.
+- [x] `/citizen/data`, `/admin/rules`, `/admin/chaos`, `/auditor`, `/eval` (Scam Map included), API keys on `/admin`.
+- [x] Design system "warm trust" (see below), live-mode API layer (202 + progress polling, real error format, 401 -> login), blur check in `PhotoCapture`, "Did my payment arrive?" button.
+- [x] Service worker offline shell (`public/sw.js`, production builds only), data-saver / low-bandwidth mode (`lib/lite.ts`, ETag/304 in `lib/api.ts`), in-app notifications bell (`lib/notices.ts`), dark/light theme (`lib/theme.ts`).
+- [x] Voice-note recorder where `SpeechRecognition` is missing (`VoiceNote.tsx`); the platform only accepts text, so typing stays required.
 - [ ] TODO(Hani): Vercel deploy; URL in README.
 
 ## Run / test
@@ -71,3 +72,28 @@ npm run dev                # http://localhost:3000 (fixtures mode)
 NEXT_PUBLIC_API_MODE=live NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 npm run lint && npm run build
 ```
+
+## Design system (src/app/globals.css, src/components/ui.tsx)
+- Tokens in `:root` (cream/teal/saffron). Use Tailwind names: `bg-teal-700`, `text-saffron-600`, `bg-cream-2`, `border-line`, `text-ink-soft`. Urdu text: `dir="rtl" lang="ur"` (Naskh face via `[lang="ur"]`).
+- Primitives in `components/ui.tsx`: `Button`/`LinkButton` (English + Urdu), `Card`, `Badge`, `Notice`, `Field`, `Stat`, `Meter`, `Skeleton`, `EmptyState`, `SectionTitle`. Icons: `components/Icon.tsx` (no emoji).
+- `PageShell` picks navigation by role: bottom tab bar for citizen/helper, top pills + wide layout for staff (`wide`).
+- Page files may only export the default component: put shared constants in `lib/` (e.g. `lib/status.ts`).
+- Loaders that set state go through `useLoader` (`lib/hooks.ts`) to satisfy the `react-hooks/set-state-in-effect` lint rule.
+- `.env.local` (git-ignored) sets live mode; delete it to get fixtures mode.
+
+## Backend gaps found while wiring live mode
+- `GET /helper/families` does not return the citizen's user id; helpers need it for `on_behalf_of` / `citizen_id`. `familyCitizenId()` falls back to `fam-00N -> u-citizen-N`. TODO(Basit): add `citizen_id` to the response.
+- No `GET /users` (admin users list): shown in fixtures mode only.
+
+## Offline, data saver, notifications, theme (what to know)
+- `public/sw.js` caches page HTML + build assets only, NEVER API responses (other origin). Unvisited pages redirect to `/offline`. It registers only in `next build` + `next start` (not in `next dev`). Bump `VERSION` in sw.js when its logic changes. Test offline by really stopping the web server: Chrome's offline emulation does not affect the worker's own requests.
+- Data saver (`html[data-lite]`): auto-on for Save-Data / 2G, toggle in the header. Polling slows down and pauses while the tab is hidden. GETs send `If-None-Match` (ETag exists on `/cases/{id}`, `/queue`, `/claims/{id}/progress`, not on the `/cases` list).
+- Notifications: no push channel exists, so `NotificationBell` checks `/cases` while the app is open and compares statuses. Browser alerts need the person's permission and only fire while the app/PWA is open. Notices are per user in localStorage and cleared on log out.
+- Theme: `<html data-theme>` set by an inline script before paint; use the semantic colours (`text-heading`, `text-brand`, `bg-*-soft`, `text-*-ink`, `text-on-accent`) instead of raw teal-900/ok-700 for text/tints so dark mode stays readable. Utilities can override `.card` (it lives in `@layer components`).
+- CORS: the backend only allows `http://localhost:3000`; run the frontend on port 3000 (dev or `next start -p 3000`).
+
+## Layout (app shell)
+- `PageShell`: header (logo left, controls right, never wraps) + content. Signed in at `lg+`: left sidebar (`NavBar variant="side"`) and content; below `lg`: bottom tab bar (citizen/helper) or pill row (staff). Frame is `max-w-[88rem]`.
+- Pages are a focused reading column (`max-w-3xl`) by default. Pass `wide` for dashboards and two-column pages and use `grid lg:grid-cols-*` inside. Public pages (login, offline) have no nav.
+- `.card` and `.input` live in `@layer components`, so Tailwind utilities (`ps-12`, `bg-*`, `border-*`) override them.
+- Overflow check used before release: every page at 360 / 768 / 1280 / 1920 px in light and dark, zero horizontal overflow.

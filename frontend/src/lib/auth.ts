@@ -3,6 +3,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { Role } from "./enums";
 import { API_MODE, api } from "./api";
+import { clearNotices } from "./notices";
 import type { Session } from "./types";
 
 const KEY = "bharosa.session";
@@ -92,5 +93,8 @@ export async function login(username: string, password: string): Promise<Session
 }
 
 export function logout() {
+  // Shared phones: do not leave one person's updates for the next person.
+  const s = getSession();
+  if (s) clearNotices(s.userId);
   save(null);
 }

@@ -2,10 +2,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import type { Role } from "@/lib/enums";
-import { useSession } from "@/lib/auth";
+import { HOME_FOR_ROLE, useSession } from "@/lib/auth";
+import { Skeleton } from "./ui";
 
 /**
- * UX guard only: redirects to /login when the signed-in role is not allowed.
+ * UX guard only: sends people without the right role elsewhere.
  * Real enforcement is server-side RBAC in the backend.
  */
 export function RoleGuard({ roles, children }: { roles: Role[]; children: ReactNode }) {
@@ -15,14 +16,20 @@ export function RoleGuard({ roles, children }: { roles: Role[]; children: ReactN
 
   useEffect(() => {
     if (session === undefined) return; // still reading storage
-    if (!allowed) router.replace("/login");
+    if (!session) router.replace("/login");
+    else if (!allowed) router.replace(HOME_FOR_ROLE[session.role]);
   }, [session, allowed, router]);
 
   if (!allowed) {
     return (
-      <p role="status" className="p-6 text-center text-lg">
-        Checking access… · رسائی چیک ہو رہی ہے…
-      </p>
+      <div role="status" aria-label="Checking access" className="space-y-4 py-6">
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <p className="text-center text-sm text-ink-soft">
+          Checking access… · <span dir="rtl" lang="ur">رسائی چیک ہو رہی ہے…</span>
+        </p>
+      </div>
     );
   }
   return <>{children}</>;

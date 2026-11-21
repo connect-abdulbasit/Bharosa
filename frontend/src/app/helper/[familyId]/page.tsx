@@ -1,141 +1,160 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { BigIconButton } from "@/components/BigIconButton";
-import { MicButton } from "@/components/MicButton";
+import { ClaimFlow } from "@/components/ClaimFlow";
+import { Icon } from "@/components/Icon";
 import { PageShell } from "@/components/PageShell";
 import { ReadAloud } from "@/components/ReadAloud";
-import { api } from "@/lib/api";
+import { Badge, Button, Card, Field, Notice, SectionTitle, Skeleton } from "@/components/ui";
+import { api, errorText } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { loadProgress, saveProgress } from "@/lib/offline";
-import type { CaseDetail, ConsentRecord, Family } from "@/lib/types";
-
-type Draft = { transcript: string; note: string };
-const PAGE = "helper-family";
+import { statusLook } from "@/lib/status";
+import { familyCitizenId, type CaseDetail, type CaseSummary, type ConsentRecord, type Family } from "@/lib/types";
 
 /** Accept "1" or "fam-001". */
 function normaliseId(raw: string): string {
   return /^\d+$/.test(raw) ? `fam-${raw.padStart(3, "0")}` : raw;
 }
 
-function HelperFamilyPageInner() {
+function GrantRow({ c, citizenId, onDone }: { c: ConsentRecord; citizenId: string; onDone: (r: ConsentRecord) => void }) {
+  const [open, setOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function grant() {
+    setBusy(true);
+    setErr(null);
+    try {
+      onDone(await api<ConsentRecord>("POST", "/consent", { body: { scope: c.scope, citizen_id: citizenId, pin }, token: getSession()?.token }));
+      setOpen(false);
+      setPin("");
+    } catch (e) {
+      setErr(errorText(e, "Could not save. Check the PIN."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="rounded-2xl bg-cream-2 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-bold capitalize">{c.scope}</span>
+        {c.granted ? <Badge tone="ok" icon="checkCircle">Yes · ہاں</Badge> : (
+          <button type="button" onClick={() => setOpen((v) => !v)} className="min-h-[44px] rounded-full bg-saffron-300 px-4 text-sm font-extrabold text-on-accent">
+            Ask for consent · اجازت لیں
+          </button>
+        )}
+      </div>
+      {open && !c.granted && (
+        <div className="mt-3 space-y-2">
+          <Field label="Their 4-digit PIN" ur="ان کا ۴ ہندسوں کا پن" hint="They must tell you their own PIN. It proves they agree.">
+            <input className="input tracking-[0.5em]" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} autoComplete="off" />
+          </Field>
+          {err && <Notice tone="bad">{err}</Notice>}
+          <Button loading={busy} disabled={pin.length !== 4} onClick={() => void grant()} icon="lock" en="Save their consent" ur="اجازت محفوظ کریں" />
+        </div>
+      )}
+    </li>
+  );
+}
+
+function HelperFamilyInner() {
   const params = useParams<{ familyId: string }>();
   const router = useRouter();
   const familyId = normaliseId(params.familyId);
   const [family, setFamily] = useState<Family | null | undefined>(undefined);
-  const [claim, setClaim] = useState<CaseDetail | null>(null);
+  const [latest, setLatest] = useState<CaseDetail | null>(null);
   const [consent, setConsent] = useState<ConsentRecord[]>([]);
-  const [draft, setDraft] = useState<Draft>({ transcript: "", note: "" });
-  const [error, setError] = useState(false);
-  const ready = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getSession()?.token;
-    ready.current = false;
-    Promise.all([
-      api<{ items: Family[] }>("GET", "/helper/families", { token }),
-      api<{ items: { id: string }[] }>("GET", "/cases", { token }).then((r) =>
-        r.items[0] ? api<CaseDetail>("GET", `/cases/${r.items[0].id}`, { token }) : null,
-      ),
-      api<{ items: ConsentRecord[] }>("GET", "/consent", { token }),
-      loadProgress<Draft>(PAGE, familyId),
-    ])
-      .then(([fam, c, con, saved]) => {
-        setFamily(fam.items.find((f) => f.family_id === familyId) ?? null);
-        setClaim(c);  // TODO: filter by family once the backend links cases to families
-        setConsent(con.items);
-        if (saved) setDraft(saved.data);
-        ready.current = true;
+    api<{ items: Family[] }>("GET", "/helper/families", { token })
+      .then(async (fam) => {
+        const f = fam.items.find((x) => x.family_id === familyId) ?? null;
+        setFamily(f);
+        if (!f) return;
+        const cid = familyCitizenId(f);
+        const [cases, con] = await Promise.all([
+          api<{ items: CaseSummary[] }>("GET", "/cases", { token }),
+          api<{ items: ConsentRecord[] }>("GET", "/consent", { token }),
+        ]);
+        setConsent(con.items.filter((c) => c.citizen_id === cid));
+        const mine = cases.items.find((c) => c.citizen_name === f.head_name);
+        if (mine) setLatest(await api<CaseDetail>("GET", `/cases/${mine.id}`, { token }));
       })
-      .catch(() => setError(true));
+      .catch((e) => setError(errorText(e, "Could not load this person.")));
   }, [familyId]);
-
-  function update(next: Draft) {
-    setDraft(next);
-    if (ready.current) void saveProgress(PAGE, familyId, next);
-  }
 
   function switchPerson() {
     // Clear everything on screen so the next person never sees this one's data.
     setFamily(undefined);
-    setClaim(null);
+    setLatest(null);
     setConsent([]);
-    setDraft({ transcript: "", note: "" });
     router.push("/helper");
   }
 
-  const consentOk = family?.consent_on_file ?? false;
+  const cid = family ? familyCitizenId(family) : "";
+  const identityOk = consent.length ? consent.some((c) => c.scope === "identity" && c.granted) : family?.consent_on_file ?? false;
+  const look = latest ? statusLook(latest.status) : null;
 
   return (
-    <PageShell title="Open case" urdu="کھلا ہوا کیس" roles={["helper"]} back={{ href: "/helper", label: "All families / تمام خاندان" }}>
-      {error && <p role="alert" className="font-semibold text-red-700">Could not load this case. · کیس لوڈ نہیں ہوا۔</p>}
-      {family === undefined && !error && <p>Loading… · لوڈ ہو رہا ہے…</p>}
-      {family === null && (
-        <p role="alert" className="rounded-xl border-2 border-amber-600 bg-amber-50 p-4 text-black">
-          No such person. Go back and choose again. · ایسا کوئی فرد نہیں۔ واپس جا کر دوبارہ چنیں۔
-        </p>
-      )}
+    <PageShell title="Open case" urdu="کھلا ہوا کیس" roles={["helper"]} wide back={{ href: "/helper", label: "All families · تمام خاندان" }}>
+      {error && <Notice tone="bad">{error}</Notice>}
+      {family === undefined && !error && <div className="grid gap-6 lg:grid-cols-5"><Skeleton className="h-56 lg:col-span-2" /><Skeleton className="h-56 lg:col-span-3" /></div>}
+      {family === null && <Notice tone="warn" title="No such person. Go back and choose again. · ایسا کوئی فرد نہیں۔" />}
+
       {family && (
-        <>
-          <div role="status" className="rounded-2xl border-4 border-teal-900 bg-teal-100 p-4 text-black">
-            <p className="text-sm font-semibold uppercase">You are now helping · آپ مدد کر رہے ہیں</p>
-            <p className="text-3xl font-extrabold">{family.head_name}</p>
+        <div className="grid items-start gap-6 lg:grid-cols-5">
+          <div className="space-y-6 lg:col-span-2 lg:sticky lg:top-28">
+          <div role="status" className="rise rounded-[26px] border-4 border-saffron-500 bg-saffron-50 p-5">
+            <p className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-saffron-600">
+              <Icon name="users" size={18} /> You are now helping · <span dir="rtl" lang="ur" className="normal-case">آپ مدد کر رہے ہیں</span>
+            </p>
+            <p className="text-3xl font-extrabold text-heading">{family.head_name}</p>
           </div>
 
-          {!consentOk && (
-            <p role="alert" className="rounded-xl border-2 border-red-700 bg-red-50 p-3 font-semibold text-red-900">
-              No consent on file. Ask this person for permission before doing anything. · اجازت موجود نہیں۔ کچھ کرنے سے پہلے ان سے اجازت لیں۔
-            </p>
+          {!identityOk && (
+            <Notice tone="bad" title="No consent on file. Ask this person for permission before doing anything.">
+              <p dir="rtl" lang="ur">اجازت موجود نہیں۔ کچھ کرنے سے پہلے ان سے اجازت لیں۔</p>
+            </Notice>
           )}
 
-          <section aria-labelledby="st" className="space-y-2 rounded-2xl border-2 p-4">
-            <h2 id="st" className="text-xl font-bold">Claim status · دعوے کی حالت</h2>
-            {claim && (
+          <Card className="rise space-y-3">
+            <SectionTitle icon="clock" en="Claim status" ur="دعوے کی حالت" />
+            {!latest && <p className="text-ink-soft">No claim yet for this person. · <span dir="rtl" lang="ur">ابھی کوئی دعویٰ نہیں۔</span></p>}
+            {latest && look && (
               <>
-                <p className="text-lg">
-                  <strong>{claim.status.replace(/_/g, " ")}</strong> · PKR {claim.amount_claimed_pkr}
-                </p>
-                <p>{claim.explanation_en}</p>
-                <p dir="rtl" lang="ur">{claim.explanation_ur}</p>
-                <ReadAloud ur={claim.explanation_ur ?? undefined} en={claim.explanation_en ?? undefined} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge tone={look.tone}>{look.en} · <span dir="rtl" lang="ur">{look.ur}</span></Badge>
+                  <span className="font-extrabold">PKR {latest.amount_claimed_pkr.toLocaleString("en-US")}</span>
+                </div>
+                {latest.explanation_en && <p className="text-lg">{latest.explanation_en}</p>}
+                {latest.explanation_ur && <p dir="rtl" lang="ur" className="text-xl">{latest.explanation_ur}</p>}
+                <ReadAloud ur={latest.explanation_ur ?? undefined} en={latest.explanation_en ?? undefined} />
               </>
             )}
-          </section>
+          </Card>
 
-          <section aria-labelledby="co" className="space-y-2 rounded-2xl border-2 p-4">
-            <h2 id="co" className="text-xl font-bold">Consent · رضامندی</h2>
-            <ul className="space-y-1">
-              {consent.map((c) => (
-                <li key={c.id} className="flex items-center justify-between">
-                  <span className="capitalize">{c.scope}</span>
-                  <span className="font-semibold">{c.granted ? "✅ Yes · ہاں" : "⛔ No · نہیں"}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Card className="rise rise-1 space-y-3">
+            <SectionTitle icon="lock" en="Consent" ur="رضامندی" />
+            {consent.length === 0 && <p className="text-ink-soft">Consent details are not available.</p>}
+            <ul className="space-y-2">{consent.map((c) => <GrantRow key={c.id} c={c} citizenId={cid} onDone={(r) => setConsent((p) => p.map((x) => (x.id === r.id ? r : x)))} />)}</ul>
+          </Card>
 
-          <section aria-labelledby="dr" className="space-y-3">
-            <h2 id="dr" className="text-xl font-bold">Their words · ان کی بات</h2>
-            {draft.transcript ? (
-              <div className="space-y-2 rounded-xl bg-green-50 p-3 text-black">
-                <p dir="auto" className="text-xl">“{draft.transcript}”</p>
-                <button type="button" onClick={() => update({ ...draft, transcript: "" })} className="min-h-[48px] rounded-xl border-2 px-4 font-semibold">
-                  Again · دوبارہ
-                </button>
-              </div>
+          <Button variant="danger" full size="lg" icon="refresh" en="Switch person" ur="دوسرا فرد" onClick={switchPerson} />
+          </div>
+
+          <div className="rise rise-2 lg:col-span-3">
+            <h2 className="mb-4 flex flex-wrap items-baseline gap-x-3 text-2xl font-extrabold text-heading"><span>New claim for {family.head_name.split(" ")[0]}</span><span dir="rtl" lang="ur" className="text-saffron-600">نیا دعویٰ</span></h2>
+            {identityOk ? (
+              <ClaimFlow personId={cid} onBehalfOf={cid} statusHref={`/helper/${familyId}`} />
             ) : (
-              <MicButton onConfirm={(t) => update({ ...draft, transcript: t })} />
+              <Notice tone="warn">Get their consent first, then you can file a claim. · <span dir="rtl" lang="ur">پہلے اجازت لیں، پھر دعویٰ کریں۔</span></Notice>
             )}
-            <label className="block text-lg font-semibold">
-              Your note · آپ کا نوٹ
-              <textarea value={draft.note} onChange={(e) => update({ ...draft, note: e.target.value })} rows={3} className="mt-1 w-full rounded-xl border-2 p-3 text-lg text-black" />
-            </label>
-            <p className="text-sm opacity-80">Saved on this phone for this person only. · صرف اسی فرد کے لیے اس فون پر محفوظ۔</p>
-          </section>
-
-          <BigIconButton icon="🔄" en="Switch person" ur="دوسرا فرد" onClick={switchPerson} tone="danger" />
-        </>
+          </div>
+        </div>
       )}
     </PageShell>
   );
@@ -143,8 +162,8 @@ function HelperFamilyPageInner() {
 
 export default function HelperFamilyPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-center">Loading… · لوڈ ہو رہا ہے…</p>}>
-      <HelperFamilyPageInner />
+    <Suspense fallback={<div className="p-6"><Skeleton className="h-40" /></div>}>
+      <HelperFamilyInner />
     </Suspense>
   );
 }
