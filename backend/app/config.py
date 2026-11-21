@@ -46,6 +46,11 @@ class Settings:
     DEFAULT_RATE_LIMIT = _env("DEFAULT_RATE_LIMIT", "120/minute")
     PUBLIC_RATE_LIMIT = _env("PUBLIC_RATE_LIMIT", "30/minute")  # per API key
     TRUST_PROXY = _env("TRUST_PROXY", "0") == "1"  # use X-Forwarded-For for the client IP (set behind Render/Railway)
+    # --- optional services app (notifications + webhooks). Empty = off: nothing is sent and nothing breaks.
+    NOTIFICATIONS_URL = _env("NOTIFICATIONS_URL", "").rstrip("/")
+    WEBHOOKS_URL = _env("WEBHOOKS_URL", "").rstrip("/")
+    SERVICES_API_KEY = _env("SERVICES_API_KEY", "dev-services-key-not-for-production")  # FAKE dev default
+    SERVICES_TIMEOUT_SECONDS = float(_env("SERVICES_TIMEOUT_SECONDS", "3"))
     # --- monitoring / deploy
     SENTRY_DSN = _env("SENTRY_DSN", "")
     ENVIRONMENT = _env("ENVIRONMENT", "dev")
