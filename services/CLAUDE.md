@@ -14,9 +14,12 @@ Read the root `CLAUDE.md` first.
 - No real personal data.
 
 ## Tasks
-- [ ] TODO(Hadi): `notifications/`: templates (ur/en), queue, retry, consent-aware.
-- [ ] TODO(Hadi): `webhooks/`: subscription, HMAC signatures, retry/backoff, delivery log.
-- [ ] TODO(Hadi): `digital_twin/`: synthetic populations, scam-wave scenarios, results summary for the demo.
+- [x] `notifications/`: templates (ur/en), retry, consent-aware (default deny).
+- [x] `webhooks/`: subscription, HMAC signatures, retry/backoff, delivery log. TODO(Hadi): backend `events.emit()` must POST to `/events` (Basit's file).
+- [x] `digital_twin/`: rule preview (read-only), synthetic history, scam wave, JSON report. See its README.
 
 ## Run / test
-Each subfolder gets its own README with run commands as it is built.
+```
+PYTHONPATH=. python -m uvicorn services.main:app --port 8002   # from the repo root; MOCKS_URL=http://localhost:8001, WEBHOOKS_ALLOW_LOCAL=1 for local demos
+PYTHONPATH=. python -m pytest services -q
+```

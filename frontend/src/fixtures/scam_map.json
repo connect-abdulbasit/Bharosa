@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-11-21T09:00:00Z",
+  "window_days": 30,
+  "min_group_size": 3,
+  "total": 60,
+  "by_area": [
+    {
+      "area": "Noorabad",
+      "count": 18
+    },
+    {
+      "area": "Sahil Colony",
+      "count": 14
+    },
+    {
+      "area": "Bagh-e-Zubaida",
+      "count": 10
+    },
+    {
+      "area": "Mehran Town North",
+      "count": 8
+    },
+    {
+      "area": "Kausar Basti",
+      "count": 6
+    },
+    {
+      "area": "other",
+      "count": 4
+    }
+  ],
+  "by_day": [
+    {
+      "day": "2026-11-19",
+      "count": 9
+    },
+    {
+      "day": "2026-11-20",
+      "count": 14
+    },
+    {
+      "day": "2026-11-21",
+      "count": 6
+    }
+  ],
+  "by_reason": [
+    {
+      "reason": "Sender is not the official code",
+      "count": 47
+    },
+    {
+      "reason": "Sender looks like the official code (look-alike)",
+      "count": 13
+    },
+    {
+      "reason": "Suspicious wording: fee",
+      "count": 21
+    },
+    {
+      "reason": "Suspicious wording: http",
+      "count": 18
+    },
+    {
+      "reason": "other",
+      "count": 5
+    }
+  ]
+}

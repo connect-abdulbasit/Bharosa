@@ -1,3 +1,3 @@
 # Webhooks
 
-TODO(Hadi): partner webhooks on case events (`case.created`, `case.decided`, `consent.withdrawn`), HMAC-signed, retry with backoff, delivery log. All simulated.
+HMAC-SHA256 signed, timestamped deliveries; SSRF-safe targets; retry 1/5/30 s then dead-letter; delivery log. Code: `service.py` (`verify()` is for receivers). Served by `services/main.py` at `/webhooks/*` and `/events`.
