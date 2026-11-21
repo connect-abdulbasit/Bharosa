@@ -21,6 +21,15 @@ SAY = {"transcript": "mujhe is mahine ke paisay nahi mile"}
 SHORT = {"transcript": "mujhe paisay kam mile hain"}
 
 
+def _people():
+    try:
+        path = os.environ.get("DEMO_PEOPLE_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "contracts", "fixtures", "demo_people.json")
+        return {p["username"]: p["name"] for p in json.load(open(path))["people"]}
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+PEOPLE = _people()
 MOCKS = {"url": None}  # set in main() when the backend uses the REAL mocks service
 
 
@@ -59,6 +68,8 @@ def login(user, password=PASSWORD):
         s, b = call("POST", "/auth/login", {"username": user, "password": password})
         if s == 200:
             _tokens[user] = b["access_token"]
+            if user in PEOPLE:
+                NAMES[_tokens[user]] = PEOPLE[user]
             return _tokens[user]
         if s == 429:
             print("   (login rate limit: 5 per minute per IP: waiting 61 s for the window to reset)")
@@ -78,7 +89,13 @@ def settle(token, claim_id):
     return call("GET", "/claims/%s" % claim_id, token=token)[1]
 
 
+REAL_AI = {"on": False}
+NAMES = {}  # token -> the name the citizen says (demo_people.json). The REAL extractor never guesses a missing name; the stub always hears one.
+
+
 def file_claim(token, body=SAY):
+    if REAL_AI["on"] and "transcript" in body and token in NAMES:
+        body = dict(body, transcript="mera naam %s hai. %s" % (NAMES[token], body["transcript"]))
     s, b = call("POST", "/claims", body, token)
     assert s == 202, "POST /claims -> %s %s" % (s, b)
     return settle(token, b["claim_id"])
@@ -153,12 +170,14 @@ def s5(t):
 
 def s6(t):
     outage(True)
-    tok = login("s6-idown")
-    c = file_claim(tok)
-    show(c)
-    print("   identity_lookup: %s - %s" % (steps(c)["identity_lookup"]["status"], steps(c)["identity_lookup"]["detail"]))
-    assert c["status"] == "with_officer" and steps(c)["identity_lookup"]["status"] == "failed"
-    outage(False)
+    try:
+        tok = login("s6-idown")
+        c = file_claim(tok)
+        show(c)
+        print("   identity_lookup: %s - %s" % (steps(c)["identity_lookup"]["status"], steps(c)["identity_lookup"]["detail"]))
+        assert c["status"] == "with_officer" and steps(c)["identity_lookup"]["status"] == "failed"
+    finally:
+        outage(False)
     call("POST", "/claims/%s/resume" % c["claim_id"], token=tok)
     r = settle(tok, c["claim_id"])
     print("   service back, resume -> status=%s, steps done=%d/8" % (r["status"], sum(1 for x in r["pipeline_steps"] if x["status"] == "done")))
@@ -190,6 +209,9 @@ def main():
         MOCKS["url"] = os.environ.get("MOCKS_HOST_URL", "http://localhost:8001").rstrip("/")
         urllib.request.urlopen(urllib.request.Request(MOCKS["url"] + "/reset", method="POST"), timeout=10).read()
         print("Using the REAL mocks at %s (%s)\n" % (MOCKS["url"], h["mocks"].get("url")))
+    REAL_AI["on"] = h.get("ai_mode") == "real"
+    if REAL_AI["on"]:
+        print("AI_MODE=real: each citizen says their name first (the real extractor asks for it instead of guessing)\n")
     t = {"admin": login("admin", "admin-demo-123")}
     s, r = call("POST", "/admin/demo/reset", {"include_rules": True}, t["admin"])
     assert s == 200, "reset failed: %s %s" % (s, r)
@@ -204,15 +226,15 @@ def main():
             outcome = fn(t)
             results.append((n, title, True, outcome))
             print("   => PASS: %s\n" % outcome)
-        except AssertionError as e:
-            results.append((n, title, False, str(e)))
-            print("   => FAIL: %s\n" % e)
+        except Exception as e:  # an outcome that differs from the docs must be reported, not crash the run
+            results.append((n, title, False, "%s: %s" % (type(e).__name__, e)))
+            print("   => DIFFERS FROM docs/demo-scenarios.md: %s: %s\n" % (type(e).__name__, e))
     call("POST", "/admin/demo/chaos", {"identity_down": False, "ledger_down": False, "payments_down": False}, t["admin"])
     if MOCKS["url"]:
         outage(False)
     print("SUMMARY")
     for n, title, ok, outcome in results:
-        print("  %d. %-46s %s  %s" % (n, title, "PASS" if ok else "FAIL", outcome))
+        print("  %d. %-46s %s  %s" % (n, title, "PASS" if ok else "DIFFERS", outcome))
     raise SystemExit(0 if all(r[2] for r in results) else 1)
 
 
