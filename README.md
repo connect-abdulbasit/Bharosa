@@ -215,9 +215,9 @@ Numbers are an upper bound: the data is synthetic. Live numbers from real use ar
 
 | Item | Link |
 |---|---|
-| Frontend (deployed) | _TODO: add URL_ (Hani, Vercel) |
-| Backend / Swagger | _TODO: add URL_ (Basit, Render + Supabase) |
-| Demo video | _TODO: add URL_ |
+| Live demo (frontend) | https://app.16-192-138-11.sslip.io |
+| Backend API / Swagger | https://api.16-192-138-11.sslip.io/docs |
+| Demo video | https://drive.google.com/file/d/1eD_0ZSN-w6nQ21tb_bBZ3zkCnJ-fTQqd/view?usp=sharing |
 
 ## How to enable the LLM
 It is optional and needs **no code change**: set `LLM_API_KEY`, `LLM_MODEL` and **`LLM_BASE_URL` for your provider** in the backend environment and **restart**. Tested with Gemini: `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-2.5-flash` (about 1 s per call; the app waits 8 s, so slower "thinking" models time out). Blank `LLM_BASE_URL` means xAI, and a key sent to the wrong provider is exposed to it. On a rate limit (429) the client retries with a pause, then skips the LLM for 20 s and the offline parser answers. `GET /health` then shows `extract_claim: real` instead of `real_offline_fallback`. `AI_USE_LLM=0` switches it off again. Only claim extraction can use it; the ID photo never leaves the server. Steps for the deployed backend: [DEPLOY.md](DEPLOY.md#5-adding-the-llm-key-later-2-min-no-code-change).
@@ -247,7 +247,7 @@ With `AI_MODE=real` and no key (what the integration runs used; `GET /health` an
 - Notifications and webhooks need the services app (in the compose file; `NOTIFICATIONS_URL` / `WEBHOOKS_URL` empty = off). In-app messages are shown on the citizen home page; there is no push channel. Webhook deliveries need a subscriber registered on the services app.
 - Browser speech recognition is Chrome-only; other browsers get the typed fallback.
 - The login limit is relaxed to 30/minute while `DEMO_MODE=1`; set `DEMO_MODE=0` for real use.
-- Nothing is deployed yet; the URLs below are placeholders.
+- The live demo runs on one small AWS EC2 instance (Docker Compose for Postgres, backend, mocks and services; Caddy for HTTPS; the frontend under pm2). It is sized for a demo, not for load.
 
 ## Docs
 [Architecture](docs/architecture.md) · [Decision rule](docs/decision-rule.md) · [Real vs simulated](docs/real-vs-simulated.md) · [Demo script](docs/demo-script.md) · [Judge checklist](docs/judge-checklist.md)
