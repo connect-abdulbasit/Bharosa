@@ -9,6 +9,7 @@ import { Logo } from "./Logo";
 import { NavBar } from "./NavBar";
 import { NotificationBell } from "./NotificationBell";
 import { OnlineBadge } from "./OnlineBadge";
+import { PrototypeBanner } from "./PrototypeBanner";
 import { RoleGuard } from "./RoleGuard";
 import { SessionBar } from "./SessionBar";
 import { ThemeToggle } from "./ThemeToggle";
@@ -66,6 +67,7 @@ export function PageShell({ title, urdu, roles, back, note, wide, actions, child
 
   return (
     <>
+      <PrototypeBanner />
       <OnlineBadge />
       <header className="no-print sticky top-0 z-30 border-b border-line bg-cream/90 backdrop-blur">
         <div className={`${FRAME} flex items-center justify-between gap-3 py-2.5`}>

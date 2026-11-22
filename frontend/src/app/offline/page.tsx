@@ -1,5 +1,6 @@
 import { Icon } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
+import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { RetryButton } from "./RetryButton";
 
 export const metadata = { title: "Offline" };
@@ -8,6 +9,7 @@ export const metadata = { title: "Offline" };
 export default function OfflinePage() {
   return (
     <>
+      <PrototypeBanner />
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center">
         <Logo />
         <span className="flex h-24 w-24 items-center justify-center rounded-full bg-teal-50 text-brand">
