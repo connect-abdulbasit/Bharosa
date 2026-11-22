@@ -15,7 +15,7 @@ from app.db import session_factory
 from app.limiter import limiter
 from app.middleware import ETagMiddleware, RequestContextMiddleware
 from app.routers import (admin, apikeys, audit, auth, cases, claims, consent, documents, evalr, helper, messages, public, queue,
-                         notifications, rules, scam_map)
+                         notifications, rules, scam_map, tts)
 from app.services import jobs
 from app.services.mocks_client import mocks_status
 
@@ -52,6 +52,7 @@ TAGS = [
     {"name": "apikeys", "description": "Admin: create (shown once), list and revoke partner API keys."},
     {"name": "public", "description": "Read-only partner API. Header `X-API-Key`. Rate limited per key."},
     {"name": "notifications", "description": "In-app messages (Urdu + English) the notifications service creates when a case status changes; consent-gated."},
+    {"name": "tts", "description": "Spoken Urdu/English audio (MP3) for read-aloud when the device has no Urdu voice. TTS_PROVIDER=off disables it."},
     {"name": "eval", "description": "Evaluation numbers computed from real decisions and checks."},
     {"name": "scam-map", "description": "Privacy-safe scam counts by area, day and reason (areas under 3 reports grouped as 'other')."},
     {"name": "admin", "description": "Demo controls (DEMO_MODE=1): one-click reset to a known state, outage switches for the fake mocks."},
@@ -98,7 +99,7 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True, allow_methods=["*"],
                    allow_headers=["*"], expose_headers=["X-Request-ID", "ETag"])
 
-for module in (admin, auth, cases, claims, messages, documents, rules, consent, audit, queue, helper, apikeys, public, evalr, scam_map, notifications):
+for module in (admin, auth, cases, claims, messages, documents, rules, consent, audit, queue, helper, apikeys, public, evalr, scam_map, notifications, tts):
     app.include_router(module.router)
 
 
