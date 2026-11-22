@@ -1,6 +1,5 @@
 import { Icon, type IconName } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
-import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LinkButton } from "@/components/ui";
 
@@ -50,8 +49,6 @@ const SAFETY: { icon: IconName; en: string }[] = [
 export default function Home() {
   return (
     <>
-      <PrototypeBanner />
-
       <header className="hero-gradient relative overflow-hidden text-white">
         <div className="mx-auto max-w-5xl px-5 pb-16 pt-5 sm:pb-24">
           <div className="flex items-center justify-between">

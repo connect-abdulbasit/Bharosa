@@ -149,7 +149,7 @@ function HelperFamilyInner() {
           <div className="rise rise-2 lg:col-span-3">
             <h2 className="mb-4 flex flex-wrap items-baseline gap-x-3 text-2xl font-extrabold text-heading"><span>New claim for {family.head_name.split(" ")[0]}</span><span dir="rtl" lang="ur" className="text-saffron-600">نیا دعویٰ</span></h2>
             {identityOk ? (
-              <ClaimFlow personId={cid} onBehalfOf={cid} statusHref={`/helper/${familyId}`} />
+              <ClaimFlow personId={cid} onBehalfOf={cid} personName={family.head_name} statusHref={`/helper/${familyId}`} />
             ) : (
               <Notice tone="warn">Get their consent first, then you can file a claim.<span dir="rtl" lang="ur" className="ur-line">پہلے اجازت لیں، پھر دعویٰ کریں۔</span></Notice>
             )}

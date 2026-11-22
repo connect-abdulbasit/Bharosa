@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { ReadAloud } from "@/components/ReadAloud";
 import { StatusTimeline, type TimelineStep } from "@/components/StatusTimeline";
-import { Badge, Button, Card, EmptyState, Notice, SectionTitle, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, LinkButton, Notice, SectionTitle, Skeleton } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { useLoader } from "@/lib/hooks";
@@ -145,6 +145,15 @@ export default function StatusPage() {
             {c.explanation_en ? <p className="text-lg font-semibold">{c.explanation_en}</p> : <p className="text-ink-soft">We will explain here as soon as there is news.</p>}
             {c.explanation_ur && <p dir="rtl" lang="ur" className="text-xl font-semibold">{c.explanation_ur}</p>}
             <ReadAloud ur={spoken.ur} en={spoken.en} />
+            {c.status === "needs_more_proof" && (
+              <div className="space-y-2 rounded-2xl bg-warn-soft p-4 text-warn-ink">
+                <p className="font-extrabold">
+                  To give more proof, send your claim again: say your name and the problem clearly, and add a clear photo of your ID card.
+                  <span dir="rtl" lang="ur" className="ur-line">مزید ثبوت دینے کے لیے دعویٰ دوبارہ بھیجیں: اپنا نام اور مسئلہ صاف بتائیں اور شناختی کارڈ کی صاف تصویر دیں۔</span>
+                </p>
+                <LinkButton href="/citizen/claim" variant="accent" icon="mic" en="Send more proof" ur="مزید ثبوت بھیجیں" full />
+              </div>
+            )}
           </Card>
         </div>
       )}

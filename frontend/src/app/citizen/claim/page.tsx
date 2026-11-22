@@ -7,7 +7,7 @@ export default function ClaimPage() {
   const session = useSession();
   return (
     <PageShell title="Claim help" urdu="مدد کا دعویٰ" roles={["citizen", "helper"]} back={{ href: "/citizen", label: "My Bharosa · میرا بھروسہ" }}>
-      <ClaimFlow personId={session?.userId ?? ""} statusHref="/citizen/status" />
+      <ClaimFlow personId={session?.userId ?? ""} personName={session?.name} statusHref="/citizen/status" />
     </PageShell>
   );
 }

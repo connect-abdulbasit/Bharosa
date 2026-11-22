@@ -5,7 +5,7 @@ import { BigIconButton } from "@/components/BigIconButton";
 import { Icon } from "@/components/Icon";
 import { PageShell } from "@/components/PageShell";
 import { ReadAloud } from "@/components/ReadAloud";
-import { Badge, Button, Card, Notice, SectionTitle, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, LinkButton, Notice, SectionTitle, Skeleton } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import { getSession, useSession } from "@/lib/auth";
 import { submitClaim } from "@/lib/claims";
@@ -75,6 +75,28 @@ function MyMessages() {
   );
 }
 
+/** The one thing to do next, in plain words, from the state of the latest claim. */
+function NextStepCard({ latest }: { latest: CaseSummary | null | undefined }) {
+  if (latest === undefined) return <Skeleton className="h-36" />;
+  const st = latest?.status;
+  const view =
+    latest === null
+      ? { tone: "bg-saffron-50 border-saffron-300", en: "Did not get your payment? Start here.", ur: "ادائیگی نہیں ملی؟ یہاں سے شروع کریں۔", btn: { href: "/citizen/claim", en: "Get help with my payment", ur: "اپنی ادائیگی کے لیے مدد لیں", icon: "mic" as const } }
+      : st === "needs_more_proof"
+        ? { tone: "bg-saffron-50 border-saffron-300", en: "We need a little more from you.", ur: "ہمیں آپ سے تھوڑا اور چاہیے۔", btn: { href: "/citizen/claim", en: "Send more proof", ur: "مزید ثبوت بھیجیں", icon: "mic" as const } }
+        : st === "approved" || st === "closed" || st === "rejected"
+          ? { tone: "bg-teal-50 border-teal-100", en: "Your claim has a result.", ur: "آپ کے دعوے کا نتیجہ آ گیا ہے۔", btn: { href: "/citizen/status", en: "See what happened", ur: "دیکھیں کیا ہوا", icon: "clock" as const } }
+          : { tone: "bg-teal-50 border-teal-100", en: "A person is checking your claim. You do not need to do anything.", ur: "ایک افسر آپ کا دعویٰ دیکھ رہا ہے۔ آپ کو کچھ کرنے کی ضرورت نہیں۔", btn: { href: "/citizen/status", en: "See my claim", ur: "میرا دعویٰ دیکھیں", icon: "clock" as const } };
+  return (
+    <section aria-label="What to do next" className={`rise rise-1 space-y-3 rounded-[26px] border-2 p-5 ${view.tone}`}>
+      <p className="text-sm font-bold uppercase tracking-wide text-ink-soft">Next step · <span dir="rtl" lang="ur">اگلا قدم</span></p>
+      <p className="text-2xl font-extrabold leading-snug text-heading">{view.en}</p>
+      <p dir="rtl" lang="ur" className="text-left text-2xl font-bold">{view.ur}</p>
+      <LinkButton href={view.btn.href} size="lg" full variant="accent" icon={view.btn.icon} en={view.btn.en} ur={view.btn.ur} />
+    </section>
+  );
+}
+
 export default function CitizenHome() {
   const session = useSession();
   const [latest, setLatest] = useState<CaseSummary | null | undefined>(undefined);
@@ -92,12 +114,16 @@ export default function CitizenHome() {
     <PageShell title={first ? `Salaam, ${first}` : "My Bharosa"} urdu="میرا بھروسہ" roles={["citizen", "helper"]} wide>
       <div className="grid items-start gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <section className="hero-gradient rise relative overflow-hidden rounded-[28px] p-7 text-white sm:p-9">
+
+          <NextStepCard latest={latest} />
+
+          <section className="hero-gradient rise hidden sm:block relative overflow-hidden rounded-[28px] p-7 text-white sm:p-9">
             <p className="text-sm font-bold uppercase tracking-wide text-saffron-300">Your helper · آپ کا مددگار</p>
             <p className="mt-1 text-3xl font-extrabold leading-snug">What do you need today?</p>
             <p dir="rtl" lang="ur" className="text-left text-3xl font-bold">آج آپ کو کیا چاہیے؟</p>
           </section>
 
+          <p className="text-sm font-bold uppercase tracking-wide text-ink-soft">Or choose · <span dir="rtl" lang="ur">یا چنیں</span></p>
           <div className="rise rise-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <BigIconButton href="/citizen/check" icon="shield" tone="primary" en="Check a message" ur="پیغام چیک کریں" hint="Is this SMS a scam?" />
             <BigIconButton href="/citizen/claim" icon="mic" tone="accent" en="Claim help" ur="مدد کا دعویٰ کریں" hint="Speak, show your ID card" />
