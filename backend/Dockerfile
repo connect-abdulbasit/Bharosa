@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr t
 COPY ai ./ai
 COPY backend/pyproject.toml ./backend/pyproject.toml
 RUN pip install --no-cache-dir ./ai "./backend[monitoring]" "pytesseract>=0.3"
+COPY contracts ./contracts
 # evaluation numbers for GET /eval (synthetic data, offline, under a second). ai/eval/eval_results.json is git-ignored, so build it here
 RUN AI_MODE=real python ai/eval/run_eval.py --no-chart > /dev/null
-COPY contracts ./contracts
 COPY backend ./backend
 RUN sed -i 's/\r$//' /app/backend/start.sh \
  && adduser --disabled-password --gecos "" app \
