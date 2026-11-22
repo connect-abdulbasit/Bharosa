@@ -31,7 +31,11 @@ services:
 
   backend:
     build: { context: ., dockerfile: backend/Dockerfile }
-    env_file: [.env.example]
+    # .env.example first (safe defaults), then your local .env (git-ignored) overrides it. A clean clone without .env still starts.
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-bharosa}:${POSTGRES_PASSWORD:-bharosa}@postgres:5432/${POSTGRES_DB:-bharosa}
       # real mocks by default; run the demo scenarios with the built-in fake mocks:  BACKEND_MOCKS_URL= docker compose up
