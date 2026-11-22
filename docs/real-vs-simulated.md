@@ -33,3 +33,6 @@ Every mock response carries `"simulated": true`; the UI shows a "PROTOTYPE - sim
 | Demo scenarios, Scam Map data | **Seeded fake data** | 7 scenario citizens (`contracts/fixtures/demo_people.json`, served by `/mocks` and by the backend's fake client), 60 fake scam checks; reset with `POST /admin/demo/reset` |
 | Webhooks, notifications | **Simulated targets, real wiring** | `/services` (signed webhooks, consent-aware Urdu/English messages) is called by the backend on every status change when `NOTIFICATIONS_URL` / `WEBHOOKS_URL` are set; a down service never blocks a claim |
 | AI without an LLM key | **Real, offline** | `extract_claim` is an offline parser with `llm_unavailable` and lower confidence; OCR is Tesseract (English + Urdu) in the Docker image |
+
+## Spoken Urdu (read-aloud)
+Most laptops and many phones have no Urdu voice. When the device has none, the backend (`POST /tts`, signed-in users only) makes the audio with Microsoft's online neural voices (`edge-tts`, voice `ur-PK-UzmaNeural`). **Only the sentence the person is already reading is sent**, never ids, names from the database or documents. It is cached in memory, and any failure falls back to the browser voice (English). Set `TTS_PROVIDER=off` to keep everything on the device.

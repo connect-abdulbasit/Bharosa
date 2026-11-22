@@ -169,6 +169,7 @@ Details: [frontend/CLAUDE.md](frontend/CLAUDE.md).
 | `JWT_SECRET` | string | JWT signing secret (change in production) |
 | `LLM_API_KEY` | string | Optional. `AI_MODE=real` runs fully offline without it; with a key the LLM only helps claim extraction and explanations |
 | `AI_DEFAULT_PERIOD` | `YYYY-MM` | What "this month" means in claim speech. The demo data is for `2026-10` (compose default) |
+| `TTS_PROVIDER` | `edge` / `off` | Urdu read-aloud audio from the server when the device has no Urdu voice (default `edge`; `off` = browser voices only) |
 | `CORS_ORIGINS` | comma list | Browser origins the backend accepts (default `http://localhost:3000`) |
 
 ## Testing
