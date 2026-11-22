@@ -46,14 +46,14 @@ await step("03-citizen-scam-check", "Citizen scam check", async () => {
   const t = await text(); return (t.match(/(scam|looks safe|official|suspicious|not sure)[^\n]*/i) || [""])[0].slice(0, 90);
 });
 await step("04-citizen-claim-polling", "Citizen claim: 202 + poll until progress.active=false", async () => {
-  await page.goto(FE + "/citizen/claim"); await page.waitForSelector("text=Tell us the problem");
-  const ta = page.locator("textarea"); await ta.first().fill("mera naam Samina Parveen hai. mujhe is mahine ke paisay nahi mile");
-  await page.getByRole("button", { name: /Yes/ }).first().click();
-  await page.locator("input[type=file]").first().setInputFiles("id.jpg");
+  await page.goto(FE + "/citizen/claim"); await page.waitForSelector("text=What happened with your payment");
+  await page.getByRole("button", { name: /I did not get my money/ }).click();   // step 1: one tap, the name comes from the account
+  await page.locator("input[type=file]").first().setInputFiles("id.jpg");       // step 2: photo
   await page.waitForSelector("text=Photo looks clear", { timeout: 20000 });
+  await page.getByRole("button", { name: /^Continue/ }).click();
   const before = apiRequests.length;
-  await page.getByRole("button", { name: /Send my claim/ }).click();
-  await page.waitForSelector("text=How sure we are", { timeout: 60000 });
+  await page.getByRole("button", { name: /Send my claim/ }).click();            // step 3: check and send
+  await page.waitForSelector("text=What to do now", { timeout: 60000 });
   const mine = apiRequests.slice(before);
   const post = mine.find((r) => r.startsWith("POST /claims "));
   const polls = mine.filter((r) => /GET \/claims\/[^/]+\/progress/.test(r)).length;
@@ -156,10 +156,10 @@ async function pauseResume(switchRe, mockKey, person, failedStep, shot) {
   const mocks = await (await fetch("http://localhost:8001/chaos")).json(); if (!mocks[mockKey]) throw new Error("real mocks chaos not switched: " + JSON.stringify(mocks));
   await loginAs("helper");
   await page.goto(FE + "/helper"); await page.waitForSelector(`a:has-text('${person}')`); await page.locator("a", { hasText: person }).first().click(); await page.waitForSelector("text=You are now helping");
-  await page.locator("textarea").first().fill(`mera naam ${NAMES[person]} hai. mujhe is mahine ke paisay nahi mile`);
-  await page.getByRole("button", { name: /Yes/ }).first().click();
+  await page.getByRole("button", { name: /I did not get my money/ }).click();
+  await page.getByRole("button", { name: /Skip for now/ }).click();
   await page.getByRole("button", { name: /Send my claim/ }).click();
-  await page.waitForSelector("text=How sure we are", { timeout: 60000 });
+  await page.waitForSelector("text=What to do now", { timeout: 60000 });
   await page.screenshot({ path: `${OUT}/${shot}b-claim-paused.png`, fullPage: true });
   const ht = await apiLogin("helper", "helper-demo-123");
   const c = await (await fetch(API + "/claims/" + lastClaimId, { headers: { authorization: "Bearer " + ht } })).json();
@@ -169,7 +169,7 @@ async function pauseResume(switchRe, mockKey, person, failedStep, shot) {
   if (!(await page.getByRole("button", { name: /Try again/ }).count())) throw new Error("no Try again button on paused claim");
   const at = await apiLogin("admin", "admin-demo-123"); // the same call the panel's "Reset all" makes
   await fetch(API + "/admin/demo/chaos", { method: "POST", headers: { authorization: "Bearer " + at, "content-type": "application/json" }, body: JSON.stringify({ identity_down: false, ledger_down: false, payments_down: false }) });
-  await page.getByRole("button", { name: /Try again/ }).click(); await page.waitForSelector("text=How sure we are", { timeout: 60000 }); await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: /Try again/ }).click(); await page.waitForSelector("text=What to do now", { timeout: 60000 }); await page.waitForTimeout(1500);
   const r = apiRequests.filter((x) => /POST \/claims\/[^/]+\/resume/.test(x)).pop(); if (!r) throw new Error("resume not called");
   if (await page.getByRole("button", { name: /Try again/ }).count()) throw new Error("still paused after resume");
   return `paused at ${failedStep} -> ${r} -> completed`;
