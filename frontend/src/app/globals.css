@@ -328,3 +328,12 @@ html[data-lite="true"] .hero-gradient {
 html[data-lite="true"] .skeleton {
   background: var(--skeleton-a);
 }
+
+
+/* An Urdu sentence that follows an English one: its own right-aligned line, never wrapped inside the English paragraph. */
+.ur-line {
+  display: block;
+  margin-top: 0.2rem;
+  text-align: right;
+  line-height: 1.9;
+}

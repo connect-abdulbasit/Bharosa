@@ -99,7 +99,7 @@ export function PhotoCapture({ value, onChange, onResult, citizenId }: Props) {
             </Notice>
           )}
           {doc && doc.retake_needed && (
-            <Notice tone="warn" title={<>Please retake the photo · <span dir="rtl" lang="ur">براہ کرم تصویر دوبارہ لیں</span></>}>
+            <Notice tone="warn" title={<>Please retake the photo<span dir="rtl" lang="ur" className="ur-line">براہ کرم تصویر دوبارہ لیں</span></>}>
               <p>{doc.explanation_en}</p>
               <p dir="rtl" lang="ur">{doc.explanation_ur}</p>
             </Notice>
@@ -123,7 +123,7 @@ export function PhotoCapture({ value, onChange, onResult, citizenId }: Props) {
         </button>
       )}
       <p className="text-sm text-ink-soft">
-        Keep the card flat, in light, with all four corners visible. · <span dir="rtl" lang="ur">کارڈ سیدھا رکھیں، روشنی میں، چاروں کونے نظر آئیں۔</span>
+        Keep the card flat, in light, with all four corners visible.<span dir="rtl" lang="ur" className="ur-line">کارڈ سیدھا رکھیں، روشنی میں، چاروں کونے نظر آئیں۔</span>
       </p>
     </div>
   );

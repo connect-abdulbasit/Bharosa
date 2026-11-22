@@ -138,7 +138,7 @@ export function NotificationBell() {
               className="mt-3 min-h-[44px] w-full rounded-2xl border border-line bg-surface text-sm font-bold hover:border-teal-600"
               onClick={() => void Notification.requestPermission().then(setPerm)}
             >
-              Allow alerts on this phone · <span dir="rtl" lang="ur">اس فون پر الرٹس کی اجازت</span>
+              Allow alerts on this phone <span aria-hidden>·</span> <span dir="rtl" lang="ur">اس فون پر الرٹس کی اجازت</span>
             </button>
           )}
           {perm === "denied" && <p className="mt-2 px-2 text-xs text-ink-soft">Phone alerts are blocked in this browser&apos;s settings.</p>}

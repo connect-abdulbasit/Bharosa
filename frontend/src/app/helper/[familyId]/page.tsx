@@ -123,7 +123,7 @@ function HelperFamilyInner() {
 
           <Card className="rise space-y-3">
             <SectionTitle icon="clock" en="Claim status" ur="دعوے کی حالت" />
-            {!latest && <p className="text-ink-soft">No claim yet for this person. · <span dir="rtl" lang="ur">ابھی کوئی دعویٰ نہیں۔</span></p>}
+            {!latest && <p className="text-ink-soft">No claim yet for this person.<span dir="rtl" lang="ur" className="ur-line">ابھی کوئی دعویٰ نہیں۔</span></p>}
             {latest && look && (
               <>
                 <div className="flex flex-wrap items-center gap-3">
@@ -151,7 +151,7 @@ function HelperFamilyInner() {
             {identityOk ? (
               <ClaimFlow personId={cid} onBehalfOf={cid} statusHref={`/helper/${familyId}`} />
             ) : (
-              <Notice tone="warn">Get their consent first, then you can file a claim. · <span dir="rtl" lang="ur">پہلے اجازت لیں، پھر دعویٰ کریں۔</span></Notice>
+              <Notice tone="warn">Get their consent first, then you can file a claim.<span dir="rtl" lang="ur" className="ur-line">پہلے اجازت لیں، پھر دعویٰ کریں۔</span></Notice>
             )}
           </div>
         </div>

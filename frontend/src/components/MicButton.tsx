@@ -88,7 +88,7 @@ export function MicButton({ onConfirm, lang = "ur-PK", noteKey }: Props) {
       ) : (
         <div className="space-y-2 rounded-2xl border-2 border-dashed border-line bg-surface p-4">
           <p className="text-sm text-ink-soft">
-            Voice is not supported in this browser, please type. · <span dir="rtl" lang="ur">اس براؤزر میں آواز کام نہیں کرتی، براہ کرم لکھیں۔</span>
+            Voice is not supported in this browser, please type.<span dir="rtl" lang="ur" className="ur-line">اس براؤزر میں آواز کام نہیں کرتی، براہ کرم لکھیں۔</span>
           </p>
           {noteKey && <VoiceNote noteKey={noteKey} />}
           <textarea

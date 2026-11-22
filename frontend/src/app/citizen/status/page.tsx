@@ -130,7 +130,7 @@ export default function StatusPage() {
               <p className="text-ink-soft">{c.claim_type === "short_paid" ? "Short paid" : "Missing payment"}</p>
             </div>
             <Badge tone={statusLook(c.status).tone}>
-              {statusLook(c.status).en} · <span dir="rtl" lang="ur">{statusLook(c.status).ur}</span>
+              {statusLook(c.status).en} <span aria-hidden>·</span> <span dir="rtl" lang="ur">{statusLook(c.status).ur}</span>
             </Badge>
           </Card>
 

@@ -28,12 +28,12 @@ export function BigIconButton({ icon, en, ur, hint, href, onClick, disabled, ton
   const cls = `card-lift flex min-h-[84px] w-full items-center gap-4 rounded-[22px] border-2 px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50 ${t.box}`;
   const body = (
     <>
-      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${t.chip}`}>
+      <span className={`flex h-12 w-12 shrink-0 sm:h-14 sm:w-14 items-center justify-center rounded-2xl ${t.chip}`}>
         <Icon name={icon} size={30} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col leading-tight">
-        <span className="text-xl font-extrabold">{en}</span>
-        <span dir="rtl" lang="ur" className="self-start text-xl font-bold">{ur}</span>
+        <span className="text-lg font-extrabold sm:text-xl">{en}</span>
+        <span dir="rtl" lang="ur" className="self-start text-lg font-bold leading-snug sm:text-xl">{ur}</span>
         {hint && <span className="mt-0.5 text-sm font-medium opacity-80">{hint}</span>}
       </span>
       <Icon name="arrow" size={22} className="shrink-0 opacity-60" />

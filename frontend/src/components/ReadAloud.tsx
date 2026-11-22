@@ -37,7 +37,7 @@ export function ReadAloud({ ur, en, label, autoHint }: { ur?: string; en?: strin
   if (!supported) {
     return (
       <p className="text-sm text-ink-soft">
-        Read-aloud is not available on this device. · <span dir="rtl" lang="ur">آواز میں سننے کی سہولت دستیاب نہیں</span>
+        Read-aloud is not available on this device.<span dir="rtl" lang="ur" className="ur-line">آواز میں سننے کی سہولت دستیاب نہیں</span>
       </p>
     );
   }
@@ -94,7 +94,7 @@ export function ReadAloud({ ur, en, label, autoHint }: { ur?: string; en?: strin
         <span>{playing || loading ? "Stop" : label ?? "Listen"}</span>
         <span dir="rtl" lang="ur">{playing || loading ? "رکیں" : "سنیں"}</span>
       </button>
-      {autoHint && !playing && <p className="mt-1 text-sm text-ink-soft">Tap to hear this read out loud. · <span dir="rtl" lang="ur">سننے کے لیے دبائیں</span></p>}
+      {autoHint && !playing && <p className="mt-1 text-sm text-ink-soft">Tap to hear this read out loud.<span dir="rtl" lang="ur" className="ur-line">سننے کے لیے دبائیں</span></p>}
       {note && <p className="mt-1 text-sm text-ink-soft">{note}</p>}
     </div>
   );
