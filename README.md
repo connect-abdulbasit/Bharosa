@@ -35,7 +35,7 @@ Digital public infrastructure (identity like NADRA, payments like Raast) works f
 | Deployed link, logs, basic tests | See Deployment and Testing below |
 | Admin rule editor (versioned rules) | `backend/app/routers/rules.py`, `frontend/src/app/admin/rules` |
 | Officer review queue (risk + confidence) | `backend/app/routers/queue.py`, `frontend/src/app/officer` |
-| Rate limiting and error handling | `backend/app/` (TODO(Basit)) |
+| Rate limiting and error handling | `backend/app/errors.py`, `backend/app/middleware.py` (slowapi limits, JSON `{error, message, request_id}`) |
 | Low-bandwidth mode, saved progress | `frontend/` (IndexedDB, PWA manifest) |
 | Notifications, webhooks | `services/notifications`, `services/webhooks` |
 | Helper Mode (bonus) | `backend/app/routers/helper.py`, `frontend/src/app/helper` |
@@ -180,7 +180,7 @@ make demo-scenarios             # the 8 scenarios over HTTP (fake or real mocks;
 cd frontend && npm run lint && npm run build
 PYTHONPATH=.:e2e .venv/bin/python -m pytest e2e -v    # end-to-end, needs the running stack
 ```
-Last run (branch `final-fixes`): ai 661 passed / 10 skipped (stub) and 658 / 13 (`AI_MODE=real`), backend 471, mocks 48, services 31, integration 4, e2e 13 of 13 with stub AI **and** with `AI_MODE=real` without a key, 8/8 scenarios both ways, frontend lint + build clean, 25/25 browser walkthrough steps (mobile viewport, live mode). Scenario outcomes: [docs/demo-scenarios.md](docs/demo-scenarios.md). Browser walkthrough: `e2e/ui/walkthrough.mjs`, screenshots in `docs/screenshots/`.
+Last run (branch `verify`, fresh clone, `AI_MODE=real` with an LLM key): ai 666 passed / 10 skipped, backend 472 passed / 1 skipped, mocks 48, services 31, integration 4, e2e 13 of 13 (services run locally, see Known limitations), 8/8 scenarios, frontend lint + build clean, 25/25 browser walkthrough steps (mobile viewport, live mode). Screenshots of the verification run: `docs/screenshots/verify/`. Scenario outcomes: [docs/demo-scenarios.md](docs/demo-scenarios.md). Browser walkthrough: `e2e/ui/walkthrough.mjs`, screenshots in `docs/screenshots/`.
 
 ## The 8 demo scenarios
 `make demo-scenarios` resets and runs all eight. Each one reaches a different outcome (login `s1-clean` ... `s7-autohandle` and `demo-live`, password `citizen-demo-123`). Same outcomes with the stub AI and with `AI_MODE=real` (confidences differ).
@@ -234,7 +234,12 @@ With `AI_MODE=real` and no key (what the integration runs used; `GET /health` an
 
 ## Known limitations
 - Everything is synthetic and simulated (see [Real vs simulated](docs/real-vs-simulated.md)); evaluation numbers are on synthetic data and are an upper bound.
-- The LLM path has never been run against a live provider (no key yet); it is tested with fake HTTP only.
+- The LLM only helps `extract_claim` when the offline parser refuses (no name / no claim found). It was checked live with Gemini (`gemini-2.5-flash`); free-tier keys hit 429 often, then the offline parser answers.
+- `JWT_SECRET` falls back to a public dev value in `docker-compose.yml`: anyone who knows it can forge a token for a *known user id*. Roles are re-read from the database, so a forged admin claim still gets 403, but set a real `JWT_SECRET` for any deployment.
+- `make test` assumes a clean environment: exporting a real `.env` (for example `AI_MODE=real`, `DEMO_MODE`, `NOTIFICATIONS_URL`) into the shell makes some backend tests fail.
+- e2e tests 8 and 9 (notifications, webhooks) need the services app running locally (`SERVICES_URL=http://localhost:8002`, `WEBHOOKS_ALLOW_LOCAL=1`) and fresh state: against the Docker services container the webhook receiver on the host is unreachable and earlier claims already granted notification consent.
+- A subtle edit that keeps the ID card readable is not detected by pixel checks; gross edits, blur and darkness are sent for retake, and a card CNIC or name that disagrees with the claim goes to an officer.
+- A new rule version published without its own `logic` copies the previous json-logic; `decide` reads only the thresholds, so the stored `logic` can show older numbers than the thresholds.
 - Stub AI always "hears" Mohammad Aslam at 0.81, so stub-mode claims never auto-handle (only the payment-check question can). Real mode refuses speech without a name instead of guessing.
 - OCR reads clean printed cards (our SPECIMEN samples); a real phone photo of a card will be harder. Without Tesseract installed (local runs without Docker) the photo gets the quality check only.
 - Chaos Panel: "identity down" fails every mocks endpoint (claims pause at the identity step), "payment record down" fails only the ledger (pause at the ledger step), "payments rail down" fails the payout call in the backend.

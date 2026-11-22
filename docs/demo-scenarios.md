@@ -6,7 +6,7 @@ All people, ID numbers (`00000…`), amounts and services are **fake / simulated
 ## Before you start
 ```bash
 docker compose up --build                           # real mocks by default (they serve the same people: contracts/fixtures/demo_people.json)
-make demo-scenarios                                 # resets, then runs all seven over HTTP and prints each outcome
+make demo-scenarios                                 # resets, then runs all eight over HTTP and prints each outcome
 # also works with the built-in fake mocks (BACKEND_MOCKS_URL= docker compose up) and with AI_MODE=real (default AI period 2026-10)
 ```
 - **Reset any time**: `POST /admin/demo/reset` (admin) or `make demo-reset`. It wipes cases, claims, decisions, jobs, ID photos, checked messages and consent changes, restores the seeded users, and re-seeds. **Rules and their history are kept** unless you pass `{"include_rules": true}` (`make demo-reset ARGS=--rules`). The append-only audit log is never wiped; the reset itself is audited (`demo.reset`).
