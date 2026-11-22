@@ -18,7 +18,7 @@ export function OnlineBadge() {
   return (
     <div role="status" className="flex items-center justify-center gap-2 bg-bad-700 px-4 py-1.5 text-center text-sm font-bold text-white">
       <Icon name="wifiOff" size={16} />
-      No signal: your answers are saved on this phone. · <span dir="rtl" lang="ur">سگنل نہیں: آپ کے جوابات فون پر محفوظ ہیں</span>
+      No signal: your answers are saved on this phone.<span dir="rtl" lang="ur" className="ur-line">سگنل نہیں: آپ کے جوابات فون پر محفوظ ہیں</span>
     </div>
   );
 }

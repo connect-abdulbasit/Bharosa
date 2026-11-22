@@ -61,7 +61,7 @@ function MyMessages() {
       {items === null && <Skeleton className="h-20" />}
       {items && items.length === 0 && (
         <Card className="text-center text-ink-soft">
-          <p className="font-bold">No messages yet. · <span dir="rtl" lang="ur">ابھی کوئی پیغام نہیں۔</span></p>
+          <p className="font-bold">No messages yet.<span dir="rtl" lang="ur" className="ur-line">ابھی کوئی پیغام نہیں۔</span></p>
         </Card>
       )}
       {items && items.slice(0, 3).map((m) => (
@@ -98,7 +98,7 @@ export default function CitizenHome() {
             <p dir="rtl" lang="ur" className="text-left text-3xl font-bold">آج آپ کو کیا چاہیے؟</p>
           </section>
 
-          <div className="rise rise-1 grid gap-4 sm:grid-cols-2">
+          <div className="rise rise-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <BigIconButton href="/citizen/check" icon="shield" tone="primary" en="Check a message" ur="پیغام چیک کریں" hint="Is this SMS a scam?" />
             <BigIconButton href="/citizen/claim" icon="mic" tone="accent" en="Claim help" ur="مدد کا دعویٰ کریں" hint="Speak, show your ID card" />
             <BigIconButton href="/citizen/status" icon="clock" en="Where is my claim?" ur="میرا دعویٰ کہاں ہے؟" />
@@ -112,7 +112,7 @@ export default function CitizenHome() {
             {latest === undefined && <Skeleton className="h-24" />}
             {latest === null && (
               <Card className="text-center text-ink-soft">
-                <p className="font-bold">No claim yet. · <span dir="rtl" lang="ur">ابھی کوئی دعویٰ نہیں۔</span></p>
+                <p className="font-bold">No claim yet.<span dir="rtl" lang="ur" className="ur-line">ابھی کوئی دعویٰ نہیں۔</span></p>
               </Card>
             )}
             {latest && look && (

@@ -110,7 +110,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-16 px-5 py-14">
         <section aria-labelledby="pillars">
           <h2 id="pillars" className="text-3xl font-extrabold text-heading">
-            Three things you can do <span dir="rtl" lang="ur" className="ms-2 text-2xl text-saffron-600">تین کام جو آپ کر سکتے ہیں</span>
+            Three things you can do<span dir="rtl" lang="ur" className="mt-1 block text-left text-2xl text-saffron-600">تین کام جو آپ کر سکتے ہیں</span>
           </h2>
           <div className="mt-6 grid gap-5 md:grid-cols-3">
             {PILLARS.map((p, i) => (
@@ -119,7 +119,7 @@ export default function Home() {
                   <Icon name={p.icon} size={34} />
                 </span>
                 <p className="flex items-baseline gap-3 text-2xl font-extrabold text-heading">
-                  {p.en} <span dir="rtl" lang="ur" className="text-xl text-saffron-600">{p.ur}</span>
+                  {p.en}<span dir="rtl" lang="ur" className="mt-0.5 block text-left text-xl text-saffron-600">{p.ur}</span>
                 </p>
                 <p className="text-ink-soft">{p.body}</p>
                 <p dir="rtl" lang="ur" className="text-lg text-ink-soft">{p.bodyUr}</p>
@@ -131,7 +131,7 @@ export default function Home() {
         <section aria-labelledby="how" className="grid items-start gap-10 md:grid-cols-2">
           <div>
             <h2 id="how" className="text-3xl font-extrabold text-heading">
-              How it works <span dir="rtl" lang="ur" className="ms-2 text-2xl text-saffron-600">یہ کیسے کام کرتا ہے</span>
+              How it works<span dir="rtl" lang="ur" className="mt-1 block text-left text-2xl text-saffron-600">یہ کیسے کام کرتا ہے</span>
             </h2>
             <ol className="mt-6 space-y-4">
               {STEPS.map((s) => (
@@ -139,7 +139,7 @@ export default function Home() {
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-700 text-lg font-extrabold text-white">{s.n}</span>
                   <span>
                     <span className="block font-bold">{s.en}</span>
-                    <span dir="rtl" lang="ur" className="block text-ink-soft">{s.ur}</span>
+                    <span dir="rtl" lang="ur" className="block text-left text-ink-soft">{s.ur}</span>
                   </span>
                 </li>
               ))}

@@ -82,11 +82,11 @@ export function ClaimResult({ r, statusHref, onResume, resuming }: { r: ClaimRes
         <p dir="rtl" lang="ur" className="text-xl font-semibold">{r.explanation_ur}</p>
         <div>
           <div className="mb-1 flex justify-between text-sm font-bold">
-            <span>How sure we are · <span dir="rtl" lang="ur">ہمیں کتنا یقین ہے</span></span>
+            <span>How sure we are<span dir="rtl" lang="ur" className="ur-line">ہمیں کتنا یقین ہے</span></span>
             <span>{Math.round(conf * 100)}%</span>
           </div>
           <Meter value={conf} tone={conf >= 0.9 ? "ok" : conf >= 0.6 ? "warn" : "bad"} label="Confidence" />
-          {conf < 0.6 && <p className="mt-1 text-sm font-semibold text-warn-ink">We are not sure, so a person will check. · <span dir="rtl" lang="ur">یقین نہیں، اس لیے انسان دیکھے گا۔</span></p>}
+          {conf < 0.6 && <p className="mt-1 text-sm font-semibold text-warn-ink">We are not sure, so a person will check.<span dir="rtl" lang="ur" className="ur-line">یقین نہیں، اس لیے انسان دیکھے گا۔</span></p>}
         </div>
         {r.decision?.reasons?.length > 0 && <ul className="list-disc space-y-1 ps-6 text-ink-soft">{r.decision.reasons.map((x) => <li key={x}>{x}</li>)}</ul>}
         <ReadAloud ur={`${act.ur} ${r.explanation_ur}`} en={`${act.en} ${r.explanation_en}`} />
@@ -184,7 +184,7 @@ export function ClaimFlow({ personId, onBehalfOf, statusHref }: { personId: stri
       {saveFailed && <Notice tone="warn">Saving on this phone is not available. Please do not close this page.</Notice>}
 
       <Card className="rise space-y-4">
-        <SectionTitle icon="mic" en="1. Tell us the problem" ur="۱۔ اپنا مسئلہ بتائیں" />
+        <SectionTitle icon="mic" en="1. Tell us the problem" ur="اپنا مسئلہ بتائیں" />
         {draft.transcript ? (
           <div className="space-y-3">
             <p dir="auto" className="rounded-2xl bg-ok-soft p-4 text-xl font-semibold text-ink">“{draft.transcript}”</p>
@@ -196,16 +196,16 @@ export function ClaimFlow({ personId, onBehalfOf, statusHref }: { personId: stri
       </Card>
 
       <Card className="rise rise-1 space-y-4">
-        <SectionTitle icon="camera" en="2. ID card photo" ur="۲۔ شناختی کارڈ کی تصویر" />
+        <SectionTitle icon="camera" en="2. ID card photo" ur="شناختی کارڈ کی تصویر" />
         <PhotoCapture value={draft.photo} onChange={(photo) => update({ ...draft, photo })} onResult={setDoc} citizenId={onBehalfOf} />
       </Card>
 
       <Card className="rise rise-2 space-y-3">
-        <SectionTitle icon="send" en="3. Send" ur="۳۔ بھیجیں" />
+        <SectionTitle icon="send" en="3. Send" ur="بھیجیں" />
         {error && <Notice tone="bad" title="Not sent · نہیں بھیجا جا سکا">{error}</Notice>}
         <Button size="lg" full variant="accent" disabled={!draft.transcript || (doc?.retake_needed ?? false)} onClick={() => void submit()} icon="send" en="Send my claim" ur="دعویٰ بھیجیں" />
-        {doc?.retake_needed && <p className="text-sm font-semibold text-warn-ink">Please retake the photo first. · <span dir="rtl" lang="ur">پہلے تصویر دوبارہ لیں۔</span></p>}
-        {!draft.photo && draft.transcript && <p className="text-sm text-ink-soft">No photo yet: we may ask for one later. · <span dir="rtl" lang="ur">ابھی تصویر نہیں، بعد میں مانگ سکتے ہیں۔</span></p>}
+        {doc?.retake_needed && <p className="text-sm font-semibold text-warn-ink">Please retake the photo first.<span dir="rtl" lang="ur" className="ur-line">پہلے تصویر دوبارہ لیں۔</span></p>}
+        {!draft.photo && draft.transcript && <p className="text-sm text-ink-soft">No photo yet: we may ask for one later.<span dir="rtl" lang="ur" className="ur-line">ابھی تصویر نہیں، بعد میں مانگ سکتے ہیں۔</span></p>}
       </Card>
     </div>
   );

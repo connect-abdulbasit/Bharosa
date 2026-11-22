@@ -46,6 +46,10 @@ class Settings:
     DEFAULT_RATE_LIMIT = _env("DEFAULT_RATE_LIMIT", "120/minute")
     PUBLIC_RATE_LIMIT = _env("PUBLIC_RATE_LIMIT", "30/minute")  # per API key
     TRUST_PROXY = _env("TRUST_PROXY", "0") == "1"  # use X-Forwarded-For for the client IP (set behind Render/Railway)
+    # --- spoken Urdu for read-aloud (the browser often has no Urdu voice). edge = Microsoft neural voices via the edge-tts package
+    # (the text of the message the person is already reading goes to that online service); off = browser voices only
+    TTS_PROVIDER = _env("TTS_PROVIDER", "edge")
+    TTS_TIMEOUT_SECONDS = float(_env("TTS_TIMEOUT_SECONDS", "12"))
     # --- optional services app (notifications + webhooks). Empty = off: nothing is sent and nothing breaks.
     NOTIFICATIONS_URL = _env("NOTIFICATIONS_URL", "").rstrip("/")
     WEBHOOKS_URL = _env("WEBHOOKS_URL", "").rstrip("/")

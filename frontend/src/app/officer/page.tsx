@@ -35,7 +35,7 @@ export default function OfficerQueue() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-soft">Sorted by risk (high first), then confidence (low first). · <span dir="rtl" lang="ur">خطرے کے لحاظ سے ترتیب۔</span></p>
+        <p className="text-sm text-ink-soft">Sorted by risk (high first), then confidence (low first).<span dir="rtl" lang="ur" className="ur-line">خطرے کے لحاظ سے ترتیب۔</span></p>
         <div className="flex gap-2" role="radiogroup" aria-label="Filter">
           {(["all", "high"] as const).map((f) => (
             <button key={f} role="radio" aria-checked={filter === f} onClick={() => setFilter(f)} className={`min-h-[44px] rounded-full px-4 text-sm font-bold ${filter === f ? "bg-teal-700 text-white" : "border border-line bg-surface"}`}>

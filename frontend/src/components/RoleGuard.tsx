@@ -27,7 +27,7 @@ export function RoleGuard({ roles, children }: { roles: Role[]; children: ReactN
         <Skeleton className="h-32" />
         <Skeleton className="h-32" />
         <p className="text-center text-sm text-ink-soft">
-          Checking access… · <span dir="rtl" lang="ur">رسائی چیک ہو رہی ہے…</span>
+          Checking access…<span dir="rtl" lang="ur" className="ur-line">رسائی چیک ہو رہی ہے…</span>
         </p>
       </div>
     );

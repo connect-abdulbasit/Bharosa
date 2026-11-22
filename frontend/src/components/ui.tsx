@@ -52,9 +52,9 @@ function BtnInner({ icon, en, ur, loading, size }: Pick<BtnBase, "icon" | "en" |
   return (
     <>
       {loading ? <Spinner /> : icon ? <Icon name={icon} size={size === "lg" ? 28 : 22} /> : null}
-      <span className="flex flex-col items-start leading-tight">
+      <span className="flex flex-col items-center text-center leading-tight">
         <span>{en}</span>
-        {ur && <span dir="rtl" lang="ur" className="self-end text-[0.95em] font-semibold opacity-95">{ur}</span>}
+        {ur && <span dir="rtl" lang="ur" className="text-[0.95em] font-semibold opacity-95">{ur}</span>}
       </span>
     </>
   );
@@ -91,8 +91,8 @@ export function Card({ children, className = "", lift, ...rest }: { children: Re
 
 export function SectionTitle({ en, ur, icon, right }: { en: ReactNode; ur: ReactNode; icon?: IconName; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-3 text-xl font-extrabold text-heading">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <h2 className="flex min-w-0 items-center gap-3 text-xl font-extrabold text-heading">
         {icon && (
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-brand">
             <Icon name={icon} size={22} />
@@ -141,9 +141,9 @@ export function Notice({ tone = "info", title, children, role }: { tone?: Tone; 
 export function Field({ label, ur, hint, children }: { label: ReactNode; ur?: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex items-baseline justify-between gap-3 font-bold text-heading">
+      <span className="mb-1.5 flex flex-col gap-0.5 font-bold text-heading sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
         <span>{label}</span>
-        {ur && <span dir="rtl" lang="ur" className="font-bold">{ur}</span>}
+        {ur && <span dir="rtl" lang="ur" className="self-end font-bold sm:self-auto">{ur}</span>}
       </span>
       {children}
       {hint && <span className="mt-1 block text-sm text-ink-soft">{hint}</span>}

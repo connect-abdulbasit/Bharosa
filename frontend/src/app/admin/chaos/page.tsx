@@ -109,7 +109,7 @@ export default function ChaosPage() {
                   <Card key={s.key} className={`rise flex flex-wrap items-center gap-4 ${down ? "border-bad-700 bg-bad-soft" : ""}`}>
                     <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${down ? "bg-bad-700 text-white" : "bg-teal-50 text-brand"}`}><Icon name={s.icon} size={28} /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-lg font-extrabold">{s.en} <span dir="rtl" lang="ur" className="text-saffron-600">· {s.ur}</span></p>
+                      <p className="text-lg font-extrabold">{s.en} <span aria-hidden className="text-ink-soft">·</span> <span dir="rtl" lang="ur" className="text-saffron-600">{s.ur}</span></p>
                       <p className="text-sm text-ink-soft">{s.effect}</p>
                     </div>
                     <button

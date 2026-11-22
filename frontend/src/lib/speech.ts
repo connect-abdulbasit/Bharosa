@@ -39,6 +39,11 @@ function pickVoice(prefix: string): SpeechSynthesisVoice | null {
   return voices.find((v) => v.lang.toLowerCase().startsWith(prefix)) ?? null;
 }
 
+/** True when this device has its own Urdu voice (rare on laptops). Voices can load late, so ask again at click time. */
+export function hasUrduVoice(): boolean {
+  return synthesisSupported() && pickVoice("ur") !== null;
+}
+
 /**
  * Speak Urdu if an Urdu voice exists; otherwise speak the English text with an English voice.
  * Returns which language was used, or null when speech is unavailable.

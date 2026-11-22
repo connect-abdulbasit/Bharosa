@@ -183,6 +183,28 @@ export async function apiUpload<T = unknown>(path: string, form: FormData, token
   return (await res.json()) as T;
 }
 
+/** POST a sentence to /tts and return an object URL of the spoken MP3, or null when the voice service is off or unreachable. */
+const audioCache = new Map<string, string>();
+export async function apiSpeech(text: string, lang: "ur" | "en", token?: string | null): Promise<string | null> {
+  if (API_MODE === "fixtures") return null;
+  const key = `${lang}|${text}`;
+  const hit = audioCache.get(key);
+  if (hit) return hit;
+  try {
+    const res = await fetch(`${API_URL}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ text, lang }),
+    });
+    if (!res.ok) return null;
+    const url = URL.createObjectURL(await res.blob());
+    audioCache.set(key, url);
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch a protected image (ID photo) and return an object URL. */
 export async function apiImage(path: string, token?: string | null): Promise<string | null> {
   if (API_MODE === "fixtures") return null;

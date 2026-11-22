@@ -91,7 +91,7 @@ export default function CheckPage() {
                 </li>
               ))}
             </ul>
-            <p className="text-sm text-ink-soft">The only official short code is <strong>9090</strong>. · <span dir="rtl" lang="ur">واحد سرکاری کوڈ <strong>9090</strong> ہے۔</span></p>
+            <p className="text-sm text-ink-soft">The only official short code is <strong>9090</strong>.<span dir="rtl" lang="ur" className="ur-line">واحد سرکاری کوڈ <strong>9090</strong> ہے۔</span></p>
           </Card>
 
           <Card className="space-y-3">
@@ -131,7 +131,7 @@ export default function CheckPage() {
 
           <div className="rounded-2xl bg-surface/70 p-4 text-ink">
             <div className="mb-1 flex items-center justify-between text-sm font-bold">
-              <span>How sure are we? · <span dir="rtl" lang="ur">ہمیں کتنا یقین ہے؟</span></span>
+              <span>How sure are we?<span dir="rtl" lang="ur" className="ur-line">ہمیں کتنا یقین ہے؟</span></span>
               <span>{Math.round(result.confidence * 100)}%</span>
             </div>
             <Meter value={result.confidence} tone={look.meter} label="Confidence" />
@@ -156,7 +156,7 @@ export default function CheckPage() {
 
           {result.reasons.length > 0 && (
             <div className="rounded-2xl bg-surface/70 p-4 text-ink">
-              <p className="mb-1 font-extrabold">Why we think so · <span dir="rtl" lang="ur">ہماری رائے کی وجہ</span></p>
+              <p className="mb-1 font-extrabold">Why we think so<span dir="rtl" lang="ur" className="ur-line">ہماری رائے کی وجہ</span></p>
               <ul className="list-disc space-y-1 ps-6">{result.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
             </div>
           )}

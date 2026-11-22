@@ -37,7 +37,7 @@ export function StatusTimeline({ steps }: { steps: TimelineStep[] }) {
           </div>
           <div className="pb-6 pt-1.5">
             <p className={`text-xl font-extrabold leading-tight ${s.state === "todo" ? "text-ink-soft" : "text-heading"}`}>{s.en}</p>
-            <p dir="rtl" lang="ur" className={`text-xl font-bold ${s.state === "todo" ? "text-ink-soft" : "text-saffron-600"}`}>{s.ur}</p>
+            <p dir="rtl" lang="ur" className={`text-left text-xl font-bold ${s.state === "todo" ? "text-ink-soft" : "text-saffron-600"}`}>{s.ur}</p>
             {s.time && <p className="text-sm text-ink-soft">{formatTime(s.time)}</p>}
             {s.state === "current" && (
               <p className="mt-1 inline-block rounded-full bg-saffron-300 px-3 py-0.5 text-sm font-extrabold text-on-accent">
